@@ -1,5 +1,4 @@
 /build
-.gradle/
 build/
 /local.properties
 .idea/caches/
@@ -9,3 +8,4 @@ build/
 .idea/navEditor.xml
 .idea/assetWizardSettings.xml
 *.iml
+.gradle/
