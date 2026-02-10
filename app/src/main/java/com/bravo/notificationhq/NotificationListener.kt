@@ -1,24 +1,52 @@
 package com.bravo.notificationhq
 
+import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class NotificationListener : NotificationListenerService() {
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        // 1. Get the basics
-        val packageName = sbn?.packageName ?: return
-        val extras = sbn.notification.extras
-        val title = extras.getString("android.title") ?: ""
-        val text = extras.getCharSequence("android.text")?.toString() ?: ""
+        try {
+            if (sbn == null) return
+            val packageName = sbn.packageName ?: "Unknown"
 
-        // 2. THE FILTER: Only let WhatsApp through if the Title matches your target
-        // CHANGE "7S MOHAN" to the exact name of your class group or friend!
-        if (packageName == "com.whatsapp" && title.contains("Secret Teleport", ignoreCase = true)) {
+            // 1. Only WhatsApp
+            if (packageName != "com.whatsapp") return
 
-            Log.d("NOTIF_HQ", ">>> IMPORTANT DEADLINE FOUND: $text")
+            val notification = sbn.notification ?: return
+            val extras = notification.extras ?: return
+            val title = extras.getString("android.title") ?: "No Title"
+            val text = extras.getCharSequence("android.text")?.toString() ?: "No Text"
 
-            // TODO: In the future, we will save this to a database here.
+            // 2. The "Secret Teleport" Filter
+            if (title.contains("Secret Teleport", ignoreCase = true)) {
+
+                // -------------------------------------------------
+                // NEW FIX: The "Summary Assassin"
+                // If the text is just "5 new messages", ignore it.
+                // Regex explanation: ^\d+ matches "starts with a number"
+                // -------------------------------------------------
+                val isSummary = text.matches(Regex("^\\d+ new messages$"))
+                if (isSummary) {
+                    Log.d("NOTIF_DEBUG", "❌ IGNORED: Generic summary '$text'")
+                    return
+                }
+
+                // If we get here, it's a REAL message
+                Log.d("NOTIF_DEBUG", "✅ MATCH FOUND! Sending to App: $text")
+
+                val intent = Intent("Msg_Received")
+                intent.putExtra("title", title)
+                intent.putExtra("text", text)
+                intent.putExtra("source", "WhatsApp")
+                LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+            }
+
+        } catch (e: Exception) {
+            Log.e("NOTIF_DEBUG", "CRASH PREVENTED: ${e.message}")
         }
     }
 }
