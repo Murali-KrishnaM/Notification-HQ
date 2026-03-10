@@ -35,14 +35,26 @@ class NotificationListener : NotificationListenerService() {
                     return
                 }
 
-                // If we get here, it's a REAL message
-                Log.d("NOTIF_DEBUG", "✅ MATCH FOUND! Sending to App: $text")
+                // -------------------------------------------------
+                // THE SMART SCANNER (MVP Hack)
+                // -------------------------------------------------
+                val lowerText = text.lowercase()
+                val isUrgent = lowerText.contains("room") ||
+                        lowerText.contains("venue") ||
+                        lowerText.contains("cancel") ||
+                        lowerText.contains("rescheduled")
 
-                val intent = Intent("Msg_Received")
-                intent.putExtra("title", title)
-                intent.putExtra("text", text)
-                intent.putExtra("source", "WhatsApp")
-                LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+                // Slap a siren on it if it's important!
+                val finalTitle = if (isUrgent) "🚨 URGENT: $title" else title
+
+                Log.d("NOTIF_DEBUG", "✅ SAVING TO MEMORY: $text")
+
+                // -------------------------------------------------
+                // SAVE TO MEMORY DB
+                // We use 'title' (e.g. "Secret Teleport") as the source so the Detail screen finds it
+                // -------------------------------------------------
+                val newNotification = NotificationModel(finalTitle, text, "Secret Teleport")
+                MemoryDB.savedNotifications.add(0, newNotification) // Adds to the top of the list!
             }
 
         } catch (e: Exception) {
