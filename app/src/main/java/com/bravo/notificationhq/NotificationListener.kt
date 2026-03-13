@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 
 class NotificationListener : NotificationListenerService() {
 
-    // 1. We put these in a companion object so they survive even if Android briefly pauses the service
     companion object {
         private var lastSavedText = ""
         private var lastSaveTime = 0L
@@ -21,7 +20,7 @@ class NotificationListener : NotificationListenerService() {
             if (sbn == null) return
             val packageName = sbn.packageName ?: "Unknown"
 
-            // 1. THE ALLOW LIST (Multi-Channel Ingestion)
+            // 1. THE ALLOW LIST
             val allowedPackages = listOf(
                 "com.whatsapp",
                 "com.google.android.gm",
@@ -34,44 +33,29 @@ class NotificationListener : NotificationListenerService() {
             val title = extras.getString("android.title") ?: "No Title"
             val text = extras.getCharSequence("android.text")?.toString() ?: "No Text"
 
-            // Variables to hold where this message should go
             var finalTitle = title
             var routeToSource = ""
 
-            // 2. ROUTING LOGIC (Where did it come from?)
+            // 2. ROUTING LOGIC
             when (packageName) {
                 "com.whatsapp" -> {
                     if (title.contains("Secret Teleport", ignoreCase = true)) {
-                        // Summary Assassin
                         if (text.matches(Regex("^\\d+ new messages$"))) return
 
-                        // Echo Killer 2.0
-                        val currentTime = System.currentTimeMillis()
-                        val isDuplicate = (text == lastSavedText) ||
-                                (text.contains(lastSavedText, ignoreCase = true) && lastSavedText.isNotEmpty())
-                        if (isDuplicate && (currentTime - lastSaveTime < 3000)) return
-
-                        lastSavedText = text
-                        lastSaveTime = currentTime
-
-                        // Smart Scanner
                         val lowerText = text.lowercase()
-                        if (lowerText.contains("room") || lowerText.contains("cancel")) {
+                        if (lowerText.contains("room") || lowerText.contains("cancel") || lowerText.contains("rescheduled")) {
                             finalTitle = "🚨 URGENT: $title"
                         }
-
-                        routeToSource = "Secret Teleport" // Matches the Dashboard card
+                        routeToSource = "Secret Teleport"
                     }
                 }
 
                 "com.google.android.apps.classroom" -> {
-                    // Catch ALL Classroom notifications
-                    finalTitle = "📘 $title" // Add a book emoji for style
+                    finalTitle = "📘 $title"
                     routeToSource = "Classroom"
                 }
 
                 "com.google.android.gm" -> {
-                    // For Gmail, let's only catch emails that look academic
                     val lowerTitle = title.lowercase()
                     val lowerText = text.lowercase()
                     if (lowerTitle.contains("assignment") || lowerText.contains("deadline") || lowerTitle.contains("project")) {
@@ -81,8 +65,26 @@ class NotificationListener : NotificationListenerService() {
                 }
             }
 
-            // 3. SAVE TO ROOM DB (If it was routed somewhere)
+            // 3. THE UNIVERSAL ECHO KILLER & DB SAVE
             if (routeToSource.isNotEmpty()) {
+                val currentTime = System.currentTimeMillis()
+
+                // We check if the text is a duplicate
+                val isDuplicate = (text == lastSavedText) ||
+                        (text.contains(lastSavedText, ignoreCase = true) && lastSavedText.isNotEmpty()) ||
+                        (lastSavedText.contains(text, ignoreCase = true) && text.isNotEmpty())
+
+                // If it's a duplicate within 3 seconds, block it!
+                if (isDuplicate && (currentTime - lastSaveTime < 3000)) {
+                    Log.d("NOTIF_DEBUG", "❌ ECHO IGNORED [$routeToSource]: $text")
+                    return
+                }
+
+                // Update memory
+                lastSavedText = text
+                lastSaveTime = currentTime
+
+                // Save to Room
                 CoroutineScope(Dispatchers.IO).launch {
                     val db = AppDatabase.getDatabase(applicationContext)
                     val newNotification = NotificationModel(title = finalTitle, text = text, source = routeToSource)
