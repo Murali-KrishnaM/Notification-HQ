@@ -5,6 +5,9 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class NotificationListener : NotificationListenerService() {
 
@@ -53,8 +56,13 @@ class NotificationListener : NotificationListenerService() {
                 // SAVE TO MEMORY DB
                 // We use 'title' (e.g. "Secret Teleport") as the source so the Detail screen finds it
                 // -------------------------------------------------
-                val newNotification = NotificationModel(finalTitle, text, "Secret Teleport")
-                MemoryDB.savedNotifications.add(0, newNotification) // Adds to the top of the list!
+                val newNotification = NotificationModel(title = finalTitle, text = text, source = "Secret Teleport")
+                // We launch a background thread (Dispatchers.IO) to save to the database safely
+                CoroutineScope(Dispatchers.IO).launch {
+                    val db = AppDatabase.getDatabase(applicationContext)
+                    db.notificationDao().insertNotification(newNotification)
+                    Log.d("NOTIF_DEBUG", "✅ SAVED TO ROOM DB: $text")
+                }
             }
 
         } catch (e: Exception) {

@@ -79,6 +79,8 @@
                                             <option name="values">
                                               <map>
                                                 <entry key="color" value="000000" />
+                                                <entry key="imagePath" value="C:\Users\Murali krishna M\Pictures\photoshops\Screenshot 2026-03-10 224446.png" />
+                                                <entry key="scalingPercent" value="72" />
                                               </map>
                                             </option>
                                           </PersistentState>
@@ -106,6 +108,12 @@
                                           </PersistentState>
                                         </value>
                                       </entry>
+                                    </map>
+                                  </option>
+                                  <option name="values">
+                                    <map>
+                                      <entry key="backgroundAssetType" value="COLOR" />
+                                      <entry key="backgroundColor" value="000000" />
                                     </map>
                                   </option>
                                 </PersistentState>

@@ -5,7 +5,10 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 class DetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -18,14 +21,21 @@ class DetailActivity : AppCompatActivity() {
         // 2. Set the huge Title on the screen
         findViewById<TextView>(R.id.tvDetailTitle).text = subjectName
 
-        // 3. THE MAGIC FILTER: Search our MemoryDB for messages matching this exact group!
-        val filteredList = MemoryDB.savedNotifications
-            .filter { it.source == targetGroup }
-            .toMutableList()
+        // Get the Database instance
+        val db = AppDatabase.getDatabase(this)
 
-        // 4. Show them in the list (reusing the adapter we built yesterday!)
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewDetail)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = NotificationAdapter(filteredList)
+        //  Open a background thread to fetch data
+        CoroutineScope(Dispatchers.IO).launch {
+
+            // Query the database for this specific subject
+            val filteredList = db.notificationDao().getNotificationsBySource(targetGroup).toMutableList()
+
+            //Switch back to the Main Thread to update the UI
+            withContext(Dispatchers.Main) {
+                val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewDetail)
+                recyclerView.layoutManager = LinearLayoutManager(this@DetailActivity)
+                recyclerView.adapter = NotificationAdapter(filteredList)
+            }
+        }
     }
 }
