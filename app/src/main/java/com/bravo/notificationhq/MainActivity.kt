@@ -14,12 +14,11 @@ class MainActivity : AppCompatActivity() {
         // 1. Find the new RecyclerView ID
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewSubjects)
 
-        // 2. Create our Hardcoded Demo Data (MVP Magic!)
-        // Notice how we link the course to the WhatsApp group name here.
+        // 2. The Multi-Channel Dashboard
         val myCourses = listOf(
-            SubjectModel("Design Thinking", "Secret Teleport"), // Your test group!
-            SubjectModel("Computer Networks", "CN Class 2026"),
-            SubjectModel("Software Engineering", "SE Project Team")
+            SubjectModel("Design Thinking", "Secret Teleport"), // Our WhatsApp tester
+            SubjectModel("Google Classroom", "Classroom"),      // New: Classroom catch-all
+            SubjectModel("Important Emails", "Gmail")           // New: Gmail catch-all
         )
 
         // 3. Attach it to the screen

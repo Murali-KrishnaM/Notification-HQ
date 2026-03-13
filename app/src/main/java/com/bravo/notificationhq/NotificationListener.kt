@@ -21,62 +21,73 @@ class NotificationListener : NotificationListenerService() {
             if (sbn == null) return
             val packageName = sbn.packageName ?: "Unknown"
 
-            if (packageName != "com.whatsapp") return
+            // 1. THE ALLOW LIST (Multi-Channel Ingestion)
+            val allowedPackages = listOf(
+                "com.whatsapp",
+                "com.google.android.gm",
+                "com.google.android.apps.classroom"
+            )
+            if (packageName !in allowedPackages) return
 
             val notification = sbn.notification ?: return
             val extras = notification.extras ?: return
             val title = extras.getString("android.title") ?: "No Title"
             val text = extras.getCharSequence("android.text")?.toString() ?: "No Text"
 
-            if (title.contains("Secret Teleport", ignoreCase = true)) {
+            // Variables to hold where this message should go
+            var finalTitle = title
+            var routeToSource = ""
 
-                // Summary Assassin
-                val isSummary = text.matches(Regex("^\\d+ new messages$"))
-                if (isSummary) return
+            // 2. ROUTING LOGIC (Where did it come from?)
+            when (packageName) {
+                "com.whatsapp" -> {
+                    if (title.contains("Secret Teleport", ignoreCase = true)) {
+                        // Summary Assassin
+                        if (text.matches(Regex("^\\d+ new messages$"))) return
 
-                // -------------------------------------------------
-                // NEW FIX: ECHO KILLER 2.0
-                // -------------------------------------------------
-                val currentTime = System.currentTimeMillis()
+                        // Echo Killer 2.0
+                        val currentTime = System.currentTimeMillis()
+                        val isDuplicate = (text == lastSavedText) ||
+                                (text.contains(lastSavedText, ignoreCase = true) && lastSavedText.isNotEmpty())
+                        if (isDuplicate && (currentTime - lastSaveTime < 3000)) return
 
-                // Check if the text is exactly the same, OR if one contains the other
-                // (e.g., "Hello" vs "7S MOHAN: Hello")
-                val isDuplicate = (text == lastSavedText) ||
-                        (text.contains(lastSavedText, ignoreCase = true) && lastSavedText.isNotEmpty()) ||
-                        (lastSavedText.contains(text, ignoreCase = true) && text.isNotEmpty())
+                        lastSavedText = text
+                        lastSaveTime = currentTime
 
-                // If it's a duplicate and arrived within 3 seconds of the last one, KILL IT.
-                if (isDuplicate && (currentTime - lastSaveTime < 3000)) {
-                    Log.d("NOTIF_DEBUG", "❌ ECHO IGNORED: $text")
-                    return
+                        // Smart Scanner
+                        val lowerText = text.lowercase()
+                        if (lowerText.contains("room") || lowerText.contains("cancel")) {
+                            finalTitle = "🚨 URGENT: $title"
+                        }
+
+                        routeToSource = "Secret Teleport" // Matches the Dashboard card
+                    }
                 }
 
-                // Update our memory for the next incoming message
-                lastSavedText = text
-                lastSaveTime = currentTime
+                "com.google.android.apps.classroom" -> {
+                    // Catch ALL Classroom notifications
+                    finalTitle = "📘 $title" // Add a book emoji for style
+                    routeToSource = "Classroom"
+                }
 
-                // -------------------------------------------------
-                // THE SMART SCANNER
-                // -------------------------------------------------
-                val lowerText = text.lowercase()
-                val isUrgent = lowerText.contains("room") ||
-                        lowerText.contains("venue") ||
-                        lowerText.contains("cancel") ||
-                        lowerText.contains("come") ||
-                        lowerText.contains("class") ||
-                        lowerText.contains("rescheduled")
+                "com.google.android.gm" -> {
+                    // For Gmail, let's only catch emails that look academic
+                    val lowerTitle = title.lowercase()
+                    val lowerText = text.lowercase()
+                    if (lowerTitle.contains("assignment") || lowerText.contains("deadline") || lowerTitle.contains("project")) {
+                        finalTitle = "📧 $title"
+                        routeToSource = "Gmail"
+                    }
+                }
+            }
 
-                val finalTitle = if (isUrgent) "🚨 URGENT: $title" else title
-
-                // -------------------------------------------------
-                // SAVE TO ROOM DB
-                // -------------------------------------------------
+            // 3. SAVE TO ROOM DB (If it was routed somewhere)
+            if (routeToSource.isNotEmpty()) {
                 CoroutineScope(Dispatchers.IO).launch {
                     val db = AppDatabase.getDatabase(applicationContext)
-                    // Ensure your NotificationModel uses this syntax to auto-generate the ID
-                    val newNotification = NotificationModel(title = finalTitle, text = text, source = "Secret Teleport")
+                    val newNotification = NotificationModel(title = finalTitle, text = text, source = routeToSource)
                     db.notificationDao().insertNotification(newNotification)
-                    Log.d("NOTIF_DEBUG", "✅ SAVED TO ROOM DB: $text")
+                    Log.d("NOTIF_DEBUG", "✅ SAVED [$routeToSource]: $text")
                 }
             }
 
