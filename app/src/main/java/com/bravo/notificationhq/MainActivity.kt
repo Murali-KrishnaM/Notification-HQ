@@ -4,25 +4,61 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.tabs.TabLayout
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var adapter: SubjectAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 1. Find the new RecyclerView ID
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewSubjects)
+        recyclerView = findViewById(R.id.recyclerViewSubjects)
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
-        // 2. The Multi-Channel Dashboard
-        val myCourses = listOf(
-            SubjectModel("Design Thinking", "Secret Teleport"), // Our WhatsApp tester
-            SubjectModel("Google Classroom", "Classroom"),      // New: Classroom catch-all
-            SubjectModel("Important Emails", "Gmail")           // New: Gmail catch-all
+        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
+
+        // 1. Define our Segregated Streams
+        val academicsList = listOf(
+            SubjectModel("Design Thinking", "Secret Teleport"),
+            SubjectModel("Google Classroom", "Classroom"),
+            SubjectModel("Important Emails", "Gmail")
         )
 
-        // 3. Attach it to the screen
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = SubjectAdapter(myCourses)
+        val placementsList = listOf(
+            SubjectModel("Placement Cell Updates", "Placement Cell"),
+            SubjectModel("Interview Schedules", "HR Updates")
+        )
+
+        val clubsList = listOf(
+            SubjectModel("Coding Club", "Dev Core Team"),
+            SubjectModel("Photography Club", "Shutterbugs")
+        )
+
+        // 2. Set the default view (Academics) when the app opens
+        adapter = SubjectAdapter(academicsList)
+        recyclerView.adapter = adapter
+
+        // 3. Listen for Tab Clicks to swap the data
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> updateList(academicsList)   // Academics Tab
+                    1 -> updateList(placementsList)  // Placements Tab
+                    2 -> updateList(clubsList)       // Clubs Tab
+                }
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+    }
+
+    // Helper function to smoothly swap the data in the list
+    private fun updateList(newList: List<SubjectModel>) {
+        adapter = SubjectAdapter(newList)
+        recyclerView.adapter = adapter
     }
 }

@@ -5,10 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [NotificationModel::class], version = 1, exportSchema = false)
+// ⚠️ NOTICE: We added CourseModel to the entities list and changed the version to 2
+@Database(entities = [NotificationModel::class, CourseModel::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun notificationDao(): NotificationDao
+    abstract fun courseDao(): CourseDao // <--- New DAO added here
 
     companion object {
         @Volatile
@@ -20,7 +22,11 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "notification_database"
-                ).build()
+                )
+                    // This tells Room it's okay to wipe the DB if we change the architecture during testing
+                    .fallbackToDestructiveMigration()
+                    .build()
+
                 INSTANCE = instance
                 instance
             }
