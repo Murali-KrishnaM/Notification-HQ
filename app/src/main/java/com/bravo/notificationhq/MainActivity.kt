@@ -19,6 +19,21 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: SubjectAdapter
+    private lateinit var tabLayout: TabLayout
+
+    // This will hold your actual database courses
+    private var myRealCourses = listOf<SubjectModel>()
+
+    // Hardcoded streams for the other tabs (for the demo)
+    private val placementsList = listOf(
+        SubjectModel("Placement Cell Updates", "Placement Cell"),
+        SubjectModel("Interview Schedules", "HR Updates")
+    )
+
+    private val clubsList = listOf(
+        SubjectModel("Coding Club", "Dev Core Team"),
+        SubjectModel("Photography Club", "Shutterbugs")
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,52 +41,59 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.recyclerViewSubjects)
         recyclerView.layoutManager = LinearLayoutManager(this)
+        tabLayout = findViewById(R.id.tabLayout)
 
-        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
-
-        // 1. Define our Segregated Streams (Defaults)
-        val academicsList = listOf(
-            SubjectModel("Design Thinking", "Secret Teleport"),
-            SubjectModel("Google Classroom", "Classroom"),
-            SubjectModel("Important Emails", "Gmail")
-        )
-
-        val placementsList = listOf(
-            SubjectModel("Placement Cell Updates", "Placement Cell"),
-            SubjectModel("Interview Schedules", "HR Updates")
-        )
-
-        val clubsList = listOf(
-            SubjectModel("Coding Club", "Dev Core Team"),
-            SubjectModel("Photography Club", "Shutterbugs")
-        )
-
-        // 2. Set the default view (Academics) when the app opens
-        adapter = SubjectAdapter(academicsList)
+        // Set an empty adapter initially so it doesn't crash
+        adapter = SubjectAdapter(emptyList())
         recyclerView.adapter = adapter
 
-        // 3. Listen for Tab Clicks to swap the data
+        // 1. Load the real data from the database!
+        loadCoursesFromDatabase()
+
+        // 2. Listen for Tab Clicks to swap the data
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
-                    0 -> updateList(academicsList)   // Academics Tab
+                    0 -> updateList(myRealCourses)   // Academics Tab (Dynamic!)
                     1 -> updateList(placementsList)  // Placements Tab
                     2 -> updateList(clubsList)       // Clubs Tab
                 }
             }
-
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // ----------------------------------------------------
-        // THE FAB CLICK LISTENER
-        // ----------------------------------------------------
+        // 3. THE FAB CLICK LISTENER
         val fabAddCourse = findViewById<FloatingActionButton>(R.id.fabAddCourse)
         fabAddCourse.setOnClickListener {
             showAddCourseDialog()
         }
-    } // <-- This is the closing bracket for onCreate()
+    }
+
+    // ----------------------------------------------------
+    // FETCH DATA FROM ROOM DB
+    // ----------------------------------------------------
+    private fun loadCoursesFromDatabase() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val db = AppDatabase.getDatabase(this@MainActivity)
+            val savedCourses = db.courseDao().getAllCourses()
+
+            // Convert the Database CourseModel into the SubjectModel our UI uses
+            // We set the targetGroup to the courseName so our Detail Activity knows what to look for!
+            val mappedCourses = savedCourses.map { course ->
+                SubjectModel(course.courseName, course.courseName)
+            }
+
+            withContext(Dispatchers.Main) {
+                myRealCourses = mappedCourses
+
+                // If we are currently on the Academics tab, refresh the screen immediately
+                if (tabLayout.selectedTabPosition == 0) {
+                    updateList(myRealCourses)
+                }
+            }
+        }
+    }
 
     // ----------------------------------------------------
     // SHOW DIALOG & SAVE TO DATABASE
@@ -93,7 +115,6 @@ class MainActivity : AppCompatActivity() {
                 val classroom = etClassroom.text.toString().trim()
 
                 if (courseName.isNotEmpty()) {
-                    // Create the Database Model
                     val newCourse = CourseModel(
                         courseName = courseName,
                         whatsappGroupName = whatsapp,
@@ -101,14 +122,14 @@ class MainActivity : AppCompatActivity() {
                         classroomName = classroom
                     )
 
-                    // Save it in the background thread
                     CoroutineScope(Dispatchers.IO).launch {
                         val db = AppDatabase.getDatabase(this@MainActivity)
                         db.courseDao().insertCourse(newCourse)
 
-                        // Switch back to Main thread to show the success message
                         withContext(Dispatchers.Main) {
                             Toast.makeText(this@MainActivity, "Course Saved!", Toast.LENGTH_SHORT).show()
+                            // Refresh the list automatically!
+                            loadCoursesFromDatabase()
                         }
                     }
                 } else {
