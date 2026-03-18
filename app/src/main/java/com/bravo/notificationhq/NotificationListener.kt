@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 class NotificationListener : NotificationListenerService() {
 
     companion object {
-        // The Cache Vault: Remembers the last 10 messages to aggressively kill echoes
+        // The Cache Vault
         private val recentMessages = mutableListOf<String>()
     }
 
@@ -30,36 +30,32 @@ class NotificationListener : NotificationListenerService() {
 
             val notification = sbn.notification ?: return
             val extras = notification.extras ?: return
-            val title = extras.getString("android.title") ?: "No Title"
 
-            // 2. THE DEEP EXTRACTOR (Crucial for Gmail)
-            // 'text' is usually just the Subject. 'bigText' holds the email body.
+            // From your Logcat: 'title' is the Sender Name, 'text' is the Subject, 'bigText' is the Body
+            val senderName = extras.getString("android.title") ?: ""
             val standardText = extras.getCharSequence("android.text")?.toString() ?: ""
             val bigText = extras.getCharSequence("android.bigText")?.toString() ?: ""
 
-            // Combine them so our scanner doesn't miss anything!
-            val fullText = if (bigText.isNotEmpty() && !bigText.contains(standardText)) {
-                "$standardText\n$bigText"
-            } else {
-                standardText
-            }
+            // ---------------------------------------------------------
+            // THE FIX: The Brute-Force String Smasher
+            // No clever IF statements. Just combine it all so nothing is lost.
+            // ---------------------------------------------------------
+            val fullText = "$senderName \n $standardText \n $bigText".trim()
 
-            if (fullText.trim().isEmpty()) return
+            if (fullText.isEmpty()) return
 
             // 3. THE IRONCLAD ECHO KILLER
-            // Check if this exact text (or a massive chunk of it) is in our recent memory
             val isDuplicate = recentMessages.any {
                 it == fullText ||
-                        (it.contains(fullText, ignoreCase = true) && fullText.length > 3) ||
-                        (fullText.contains(it, ignoreCase = true) && it.length > 3)
+                        (it.contains(fullText, ignoreCase = true) && fullText.length > 5) ||
+                        (fullText.contains(it, ignoreCase = true) && it.length > 5)
             }
 
             if (isDuplicate) {
-                Log.d("NOTIF_DEBUG", "❌ ECHO KILLED: $fullText")
+                Log.d("NOTIF_DEBUG", "❌ ECHO KILLED")
                 return
             }
 
-            // Save to memory, and keep the list small (Max 10 items) so it doesn't drain RAM
             recentMessages.add(fullText)
             if (recentMessages.size > 10) recentMessages.removeAt(0)
 
@@ -68,10 +64,11 @@ class NotificationListener : NotificationListenerService() {
                 val db = AppDatabase.getDatabase(applicationContext)
                 val savedCourses = db.courseDao().getAllCourses()
 
-                var finalTitle = title
+                // We will use standardText (Subject) for the UI Card Title
+                var finalTitle = standardText.ifEmpty { "New Update" }
                 var routeToSource = ""
-                val lowerTitle = title.lowercase()
-                val lowerText = fullText.lowercase() // Scanning the DEEP text
+
+                val lowerText = fullText.lowercase()
 
                 // ==========================================================
                 // STEP A: DATA EXTRACTION & FORMATTING
@@ -80,28 +77,32 @@ class NotificationListener : NotificationListenerService() {
                     "com.whatsapp" -> {
                         if (fullText.matches(Regex("^\\d+ new messages$"))) return@launch
                         if (lowerText.contains("room") || lowerText.contains("cancel") || lowerText.contains("rescheduled")) {
-                            finalTitle = "🚨 URGENT: $title"
+                            finalTitle = "🚨 URGENT: $finalTitle"
                         }
                     }
                     "com.google.android.apps.classroom" -> {
-                        finalTitle = "📘 $title"
+                        finalTitle = "📘 $finalTitle"
                     }
                     "com.google.android.gm" -> {
                         // The Garbage Filter
                         val validKeywords = listOf("quiz", "deadline", "assignment", "notes", "resource", "deadline changed")
-                        val isValidEmail = validKeywords.any { lowerTitle.contains(it) || lowerText.contains(it) }
+                        val isValidEmail = validKeywords.any { lowerText.contains(it) }
 
                         if (!isValidEmail) {
-                            Log.d("NOTIF_DEBUG", "🗑️ TRASHED (Garbage Mail): $title")
+                            Log.d("NOTIF_DEBUG", "🗑️ TRASHED (Garbage Mail): $finalTitle")
                             return@launch
                         }
 
                         // The Date Extractor
-                        if (fullText.contains("Closes on :", ignoreCase = true)) {
-                            val datePart = fullText.substringAfter("Closes on :").take(22).trim()
-                            finalTitle = "⏰ DUE $datePart"
+                        if (lowerText.contains("closes on :")) {
+                            val datePart = fullText.split(Regex("(?i)Closes on :")).getOrNull(1)?.take(22)?.trim() ?: ""
+                            if (datePart.isNotEmpty()) {
+                                finalTitle = "⏰ DUE $datePart"
+                            } else {
+                                finalTitle = "📧 $finalTitle"
+                            }
                         } else {
-                            finalTitle = "📧 $title"
+                            finalTitle = "📧 $finalTitle"
                         }
                     }
                 }
@@ -117,22 +118,22 @@ class NotificationListener : NotificationListenerService() {
                     val cRoom = course.classroomName.lowercase()
 
                     // Match WhatsApp
-                    if (packageName == "com.whatsapp" && wGroup.isNotEmpty() && lowerTitle.contains(wGroup)) {
+                    if (packageName == "com.whatsapp" && wGroup.isNotEmpty() && lowerText.contains(wGroup)) {
                         routeToSource = course.courseName
                         break
                     }
 
                     // Match Classroom
-                    if (packageName == "com.google.android.apps.classroom" && cRoom.isNotEmpty() && (lowerTitle.contains(cRoom) || lowerText.contains(cRoom))) {
+                    if (packageName == "com.google.android.apps.classroom" && cRoom.isNotEmpty() && lowerText.contains(cRoom)) {
                         routeToSource = course.courseName
                         break
                     }
 
-                    // Match Gmail using Subject AND Body (lowerText now contains both)
+                    // Match Gmail: Since fullText contains everything, we just check lowerText once
                     if (packageName == "com.google.android.gm") {
-                        val isMatch = (cName.isNotEmpty() && (lowerTitle.contains(cName) || lowerText.contains(cName))) ||
-                                (cSymbol.isNotEmpty() && (lowerTitle.contains(cSymbol) || lowerText.contains(cSymbol))) ||
-                                (cId.isNotEmpty() && (lowerTitle.contains(cId) || lowerText.contains(cId)))
+                        val isMatch = (cName.isNotEmpty() && lowerText.contains(cName)) ||
+                                (cSymbol.isNotEmpty() && lowerText.contains(cSymbol)) ||
+                                (cId.isNotEmpty() && lowerText.contains(cId))
 
                         if (isMatch) {
                             routeToSource = course.courseName
@@ -141,7 +142,7 @@ class NotificationListener : NotificationListenerService() {
                     }
                 }
 
-                // Fallback for valid emails that didn't match a course
+                // Fallback
                 if (routeToSource.isEmpty()) {
                     if (packageName == "com.google.android.gm") routeToSource = "Important Emails"
                     if (packageName == "com.google.android.apps.classroom") routeToSource = "Classroom"
@@ -151,8 +152,9 @@ class NotificationListener : NotificationListenerService() {
                 // STEP C: SAVE TO DATABASE
                 // ==========================================================
                 if (routeToSource.isNotEmpty()) {
-                    // We save the fullText so the user can read the email body in the app!
-                    val newNotification = NotificationModel(title = finalTitle, text = fullText, source = routeToSource)
+                    // Save standardText + bigText as the body for the UI
+                    val cleanBody = "$standardText\n$bigText".trim()
+                    val newNotification = NotificationModel(title = finalTitle, text = cleanBody, source = routeToSource)
                     db.notificationDao().insertNotification(newNotification)
                     Log.d("NOTIF_DEBUG", "✅ ROUTED TO [$routeToSource]: $finalTitle")
                 }
