@@ -90,42 +90,39 @@ class NotificationListener : NotificationListenerService() {
                     }
                 }
 
+// ==========================================================
+                // STEP B: DYNAMIC ROUTING ENGINE (The 3-Pronged Net)
                 // ==========================================================
-                // STEP B: DYNAMIC ROUTING ENGINE
-                // ==========================================================
-                // We check the incoming notification against EVERY course the user created.
                 for (course in savedCourses) {
+                    val cName = course.courseName.lowercase()
+                    val cSymbol = course.courseSymbol.lowercase()
+                    val cId = course.courseId.lowercase()
                     val wGroup = course.whatsappGroupName.lowercase()
-                    val tName = course.teacherName.lowercase()
-                    val cName = course.classroomName.lowercase()
-                    val cTitle = course.courseName.lowercase()
+                    val cRoom = course.classroomName.lowercase()
 
                     // Match WhatsApp
                     if (packageName == "com.whatsapp" && wGroup.isNotEmpty() && lowerTitle.contains(wGroup)) {
                         routeToSource = course.courseName
                         break
                     }
+
                     // Match Classroom
-                    if (packageName == "com.google.android.apps.classroom" && cName.isNotEmpty() && (lowerTitle.contains(cName) || lowerText.contains(cName))) {
+                    if (packageName == "com.google.android.apps.classroom" && cRoom.isNotEmpty() && (lowerTitle.contains(cRoom) || lowerText.contains(cRoom))) {
                         routeToSource = course.courseName
                         break
                     }
-                    // Match Gmail (Checks if the email mentions the Teacher OR the Course Name)
+
+                    // Match Gmail: If the email contains the Course Name, Symbol, OR ID.
+                    // NOTICE: We do NOT use facultyName here!
                     if (packageName == "com.google.android.gm") {
-                        if ((tName.isNotEmpty() && (lowerTitle.contains(tName) || lowerText.contains(tName))) ||
-                            (cTitle.isNotEmpty() && (lowerTitle.contains(cTitle) || lowerText.contains(cTitle)))) {
+                        val isMatch = (cName.isNotEmpty() && (lowerTitle.contains(cName) || lowerText.contains(cName))) ||
+                                (cSymbol.isNotEmpty() && (lowerTitle.contains(cSymbol) || lowerText.contains(cSymbol))) ||
+                                (cId.isNotEmpty() && (lowerTitle.contains(cId) || lowerText.contains(cId)))
+
+                        if (isMatch) {
                             routeToSource = course.courseName
                             break
                         }
-                    }
-                }
-
-                // Fallback: If it's a valid email/classroom but doesn't match a specific course,
-                // we drop it in the generic default buckets so it isn't lost.
-                if (routeToSource.isEmpty()) {
-                    when (packageName) {
-                        "com.google.android.gm" -> routeToSource = "Important Emails"
-                        "com.google.android.apps.classroom" -> routeToSource = "Classroom"
                     }
                 }
 

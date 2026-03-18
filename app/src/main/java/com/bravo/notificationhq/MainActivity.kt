@@ -102,23 +102,29 @@ class MainActivity : AppCompatActivity() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
 
         val etCourseName = dialogView.findViewById<EditText>(R.id.etCourseName)
+        val etCourseSymbol = dialogView.findViewById<EditText>(R.id.etCourseSymbol)
+        val etCourseId = dialogView.findViewById<EditText>(R.id.etCourseId)
+        val etFaculty = dialogView.findViewById<EditText>(R.id.etFacultyName)
         val etWhatsapp = dialogView.findViewById<EditText>(R.id.etWhatsappGroup)
-        val etTeacher = dialogView.findViewById<EditText>(R.id.etTeacherName)
         val etClassroom = dialogView.findViewById<EditText>(R.id.etClassroomName)
 
         AlertDialog.Builder(this)
             .setView(dialogView)
             .setPositiveButton("Save") { dialog, _ ->
                 val courseName = etCourseName.text.toString().trim()
+                val courseSymbol = etCourseSymbol.text.toString().trim()
+                val courseId = etCourseId.text.toString().trim()
+                val faculty = etFaculty.text.toString().trim()
                 val whatsapp = etWhatsapp.text.toString().trim()
-                val teacher = etTeacher.text.toString().trim()
                 val classroom = etClassroom.text.toString().trim()
 
                 if (courseName.isNotEmpty()) {
                     val newCourse = CourseModel(
                         courseName = courseName,
+                        courseSymbol = courseSymbol,
+                        courseId = courseId,
+                        facultyName = faculty,
                         whatsappGroupName = whatsapp,
-                        teacherName = teacher,
                         classroomName = classroom
                     )
 
@@ -128,7 +134,6 @@ class MainActivity : AppCompatActivity() {
 
                         withContext(Dispatchers.Main) {
                             Toast.makeText(this@MainActivity, "Course Saved!", Toast.LENGTH_SHORT).show()
-                            // Refresh the list automatically!
                             loadCoursesFromDatabase()
                         }
                     }
@@ -137,11 +142,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 dialog.dismiss()
             }
-            .setNegativeButton("Cancel") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .create()
-            .show()
+            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .create().show()
     }
 
     // Helper function to smoothly swap the data in the list

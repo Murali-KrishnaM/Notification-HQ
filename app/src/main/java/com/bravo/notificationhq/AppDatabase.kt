@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-// ⚠️ NOTICE: We added CourseModel to the entities list and changed the version to 2
+// ⚠️ NOTICE: We added CourseModel to the entities list and changed the version to 3
 @Database(entities = [NotificationModel::class, CourseModel::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
