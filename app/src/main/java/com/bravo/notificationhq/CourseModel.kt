@@ -9,7 +9,7 @@ data class CourseModel(
     val courseName: String,
     val courseSymbol: String,
     val courseId: String,
-    val facultyName: String,
-    val whatsappGroupName: String,
-    val classroomName: String
+    val facultyName: String? = null,
+    val whatsappGroupName: String? = null,
+    val classroomName: String? = null
 )

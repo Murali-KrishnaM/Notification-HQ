@@ -8,5 +8,7 @@ data class NotificationModel(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
     val text: String,
-    val source: String
+    val source: String,           // stores the courseName it was routed to
+    val packageSource: String = "", // "whatsapp" | "gmail" | "classroom" | "other"
+    val timestamp: Long = System.currentTimeMillis()
 )

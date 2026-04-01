@@ -1,6 +1,8 @@
 package com.bravo.notificationhq
 
 import android.os.Bundle
+import android.view.View
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -9,32 +11,45 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 class DetailActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_detail)
 
-        // 1. Get the data passed from the Dashboard click
-        val subjectName = intent.getStringExtra("SUBJECT_NAME") ?: "Unknown Subject"
-        val targetGroup = intent.getStringExtra("TARGET_GROUP") ?: ""
+        val courseName   = intent.getStringExtra("COURSE_NAME") ?: "Unknown Subject"
+        val courseSymbol = intent.getStringExtra("COURSE_SYMBOL") ?: ""
 
-        // 2. Set the huge Title on the screen
-        findViewById<TextView>(R.id.tvDetailTitle).text = subjectName
+        val tvTitle            = findViewById<TextView>(R.id.tvDetailTitle)
+        val tvSubtitle         = findViewById<TextView>(R.id.tvDetailSubtitle)
+        val recyclerView       = findViewById<RecyclerView>(R.id.recyclerViewDetail)
+        val layoutEmptyState   = findViewById<LinearLayout>(R.id.layoutDetailEmptyState)
 
-        // Get the Database instance
-        val db = AppDatabase.getDatabase(this)
+        // Set the header immediately — don't wait for DB
+        tvTitle.text    = courseName
+        tvSubtitle.text = if (courseSymbol.isNotEmpty()) courseSymbol else "Notifications"
 
-        //  Open a background thread to fetch data
+        recyclerView.layoutManager = LinearLayoutManager(this)
+
         CoroutineScope(Dispatchers.IO).launch {
+            val db            = AppDatabase.getDatabase(this@DetailActivity)
+            val notifications = db.notificationDao().getNotificationsForCourse(courseName)
 
-            // Query the database for this specific subject
-            val filteredList = db.notificationDao().getNotificationsBySource(targetGroup).toMutableList()
-
-            //Switch back to the Main Thread to update the UI
             withContext(Dispatchers.Main) {
-                val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewDetail)
-                recyclerView.layoutManager = LinearLayoutManager(this@DetailActivity)
-                recyclerView.adapter = NotificationAdapter(filteredList)
+                if (notifications.isEmpty()) {
+                    recyclerView.visibility    = View.GONE
+                    layoutEmptyState.visibility = View.VISIBLE
+                } else {
+                    recyclerView.visibility    = View.VISIBLE
+                    layoutEmptyState.visibility = View.GONE
+
+                    val count = notifications.size
+                    tvSubtitle.text = "$count notification${if (count == 1) "" else "s"}" +
+                            if (courseSymbol.isNotEmpty()) " · $courseSymbol" else ""
+
+                    recyclerView.adapter = NotificationAdapter(notifications)
+                }
             }
         }
     }

@@ -3,14 +3,20 @@ package com.bravo.notificationhq
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Delete
 
 @Dao
 interface CourseDao {
-    // Fetches all the courses the user has created
-    @Query("SELECT * FROM courses_table")
+
+    // All saved courses
+    @Query("SELECT * FROM courses_table ORDER BY courseName ASC")
     fun getAllCourses(): List<CourseModel>
 
-    // Saves a new course to the database
+    // Save a new course
     @Insert
     fun insertCourse(course: CourseModel)
+
+    // Delete a course
+    @Delete
+    fun deleteCourse(course: CourseModel)
 }

@@ -1,23 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:orientation="vertical"
-              android:background="#F5F5F5"
-              android:padding="16dp">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
 
-    <TextView
+    <!-- Header bar (matches main screen style) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#4CAF50"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:orientation="vertical">
+
+        <TextView
             android:id="@+id/tvDetailTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Subject Name"
-            android:textSize="28sp"
+            android:textSize="24sp"
             android:textStyle="bold"
-            android:textColor="#4CAF50"
-            android:layout_marginBottom="16dp"/>
+            android:textColor="#FFFFFF" />
 
-    <androidx.recyclerview.widget.RecyclerView
+        <TextView
+            android:id="@+id/tvDetailSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="All notifications"
+            android:textSize="13sp"
+            android:textColor="#E8F5E9"
+            android:layout_marginTop="2dp" />
+
+    </LinearLayout>
+
+    <!-- Content area -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewDetail"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="8dp"
+            android:paddingBottom="16dp" />
+
+        <!-- Empty state for detail screen -->
+        <LinearLayout
+            android:id="@+id/layoutDetailEmptyState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@android:drawable/ic_menu_agenda"
+                android:alpha="0.2" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="No notifications yet"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#9E9E9E" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Messages from this course will appear here"
+                android:textSize="13sp"
+                android:textColor="#BDBDBD"
+                android:gravity="center"
+                android:paddingStart="40dp"
+                android:paddingEnd="40dp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
 </LinearLayout>

@@ -1,38 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
-                                   xmlns:app="http://schemas.android.com/apk/res-auto"
-                                   android:id="@+id/cardSubject"
-                                   android:layout_width="match_parent"
-                                   android:layout_height="wrap_content"
-                                   android:layout_margin="8dp"
-                                   android:clickable="true"
-                                   android:focusable="true"
-                                   android:foreground="?android:attr/selectableItemBackground"
-                                   app:cardCornerRadius="12dp"
-                                   app:cardElevation="4dp">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardSubject"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="3dp"
+    app:cardBackgroundColor="#FFFFFF">
 
     <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="20dp"
-            android:gravity="center_vertical">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="18dp"
+        android:gravity="center_vertical">
 
-        <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_menu_agenda"
-                app:tint="#4CAF50"/>
-
+        <!-- Colored symbol pill (e.g. "NLPA") -->
         <TextView
+            android:id="@+id/tvSubjectSymbol"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:gravity="center"
+            android:text="CS"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/subject_symbol_bg" />
+
+        <!-- Name + course ID -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
                 android:id="@+id/tvSubjectName"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
                 android:text="Subject Name"
-                android:textSize="20sp"
+                android:textSize="17sp"
                 android:textStyle="bold"
-                android:textColor="@android:color/black"/>
+                android:textColor="#1A1A1A" />
+
+            <TextView
+                android:id="@+id/tvCourseId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="AD23B32"
+                android:textSize="12sp"
+                android:textColor="#757575"
+                android:layout_marginTop="2dp" />
+
+        </LinearLayout>
+
+        <!-- Notification count badge -->
+        <TextView
+            android:id="@+id/tvNotifCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/badge_bg"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:minWidth="28dp"
+            android:gravity="center"
+            android:visibility="gone" />
 
     </LinearLayout>
+
 </androidx.cardview.widget.CardView>

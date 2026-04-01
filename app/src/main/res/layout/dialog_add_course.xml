@@ -1,78 +1,185 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
 
     <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:background="#FFFFFF">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Add New Course"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#4CAF50"
+            android:layout_marginBottom="20dp" />
+
+        <!-- ── REQUIRED FIELDS ── -->
+
+        <!-- Course Name -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilCourseName"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="24dp"
-            android:background="#FFFFFF">
+            android:layout_marginBottom="12dp"
+            android:hint="Course Name *"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50"
+            app:errorEnabled="true">
 
-        <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Add New Course"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:textColor="#4CAF50"
-                android:layout_marginBottom="16dp"/>
-
-        <EditText
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etCourseName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Course Name (e.g., Natural Language Processing)"
                 android:inputType="textCapWords"
-                android:layout_marginBottom="8dp"/>
+                android:imeOptions="actionNext" />
 
-        <EditText
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Course Symbol -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilCourseSymbol"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="Course Symbol * (e.g., NLPA)"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50"
+            app:counterEnabled="true"
+            app:counterMaxLength="8"
+            app:errorEnabled="true">
+
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etCourseSymbol"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Course Symbol (e.g., NLPA)"
                 android:inputType="textCapCharacters"
-                android:layout_marginBottom="8dp"/>
+                android:maxLength="8"
+                android:imeOptions="actionNext" />
 
-        <EditText
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Course ID -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilCourseId"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:hint="Course ID * (e.g., AD23B32)"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50"
+            app:errorEnabled="true">
+
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etCourseId"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Course ID (e.g., AD23B32)"
                 android:inputType="textCapCharacters"
-                android:layout_marginBottom="16dp"/>
+                android:imeOptions="actionNext" />
 
-        <TextView
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Divider + optional label -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#E0E0E0" />
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Optional Channel Links:"
-                android:textSize="12sp"
-                android:textColor="#757575"
-                android:layout_marginBottom="8dp"/>
+                android:text="  Optional channel links  "
+                android:textSize="11sp"
+                android:textColor="#9E9E9E"
+                android:textAllCaps="true" />
 
-        <EditText
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#E0E0E0" />
+
+        </LinearLayout>
+
+        <!-- ── OPTIONAL FIELDS ── -->
+
+        <!-- Faculty Name -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilFacultyName"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="Faculty Name"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
+
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etFacultyName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Faculty Name"
                 android:inputType="textPersonName"
-                android:layout_marginBottom="8dp"/>
+                android:imeOptions="actionNext" />
 
-        <EditText
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- WhatsApp Group -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilWhatsappGroup"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="WhatsApp Group Name"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
+
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etWhatsappGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="WhatsApp Group Name"
                 android:inputType="text"
-                android:layout_marginBottom="8dp"/>
+                android:imeOptions="actionNext" />
 
-        <EditText
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Google Classroom -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilClassroomName"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:hint="Google Classroom Name"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
+
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etClassroomName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Google Classroom Name"
-                android:inputType="text"/>
+                android:inputType="text"
+                android:imeOptions="actionDone" />
+
+        </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>
 </ScrollView>
