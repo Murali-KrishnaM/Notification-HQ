@@ -1,5 +1,6 @@
 package com.bravo.notificationhq
 
+import android.content.Intent
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
@@ -12,11 +13,11 @@ class NotificationAdapter(
 ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvTitle: TextView = itemView.findViewById(R.id.tvTitle)
-        val tvMessage: TextView = itemView.findViewById(R.id.tvMessage)
-        val tvSource: TextView = itemView.findViewById(R.id.tvSource)
+        val tvTitle: TextView        = itemView.findViewById(R.id.tvTitle)
+        val tvMessage: TextView      = itemView.findViewById(R.id.tvMessage)
+        val tvSource: TextView       = itemView.findViewById(R.id.tvSource)
         val tvPriorityChip: TextView = itemView.findViewById(R.id.tvPriorityChip)
-        val viewAccentBar: View = itemView.findViewById(R.id.viewAccentBar)
+        val viewAccentBar: View      = itemView.findViewById(R.id.viewAccentBar)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -27,14 +28,12 @@ class NotificationAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val notif = notifications[position]
-        val text = notif.text ?: ""
+        val text  = notif.text ?: ""
 
         // ── Title ──────────────────────────────────────────────
         holder.tvTitle.text = notif.title ?: "Unknown"
 
-        // ── Strip priority tags from displayed message body ────
-        // The Smart Scanner embeds "🚨 URGENT" or "⏰ DUE" at the
-        // start of the text field. We show those in the chip instead.
+        // ── Clean message body ─────────────────────────────────
         val cleanText = text
             .replace("🚨 URGENT", "")
             .replace("⏰ DUE", "")
@@ -44,12 +43,12 @@ class NotificationAdapter(
         // ── Source chip ────────────────────────────────────────
         val source = notif.source ?: ""
         val (sourceLabel, sourceColor) = when {
-            source.contains("whatsapp", ignoreCase = true) ->
-                Pair("WhatsApp", Color.parseColor("#075E54"))   // WhatsApp dark green
-            source.contains("gmail", ignoreCase = true) ->
-                Pair("Gmail", Color.parseColor("#D93025"))      // Gmail red
-            source.contains("classroom", ignoreCase = true) ->
-                Pair("Classroom", Color.parseColor("#1A73E8"))  // Google blue
+            notif.packageSource.contains("whatsapp", ignoreCase = true) ->
+                Pair("WhatsApp", Color.parseColor("#075E54"))
+            notif.packageSource.contains("gmail", ignoreCase = true) ->
+                Pair("Gmail", Color.parseColor("#D93025"))
+            notif.packageSource.contains("classroom", ignoreCase = true) ->
+                Pair("Classroom", Color.parseColor("#1A73E8"))
             else ->
                 Pair(source.take(12), Color.parseColor("#424242"))
         }
@@ -74,6 +73,19 @@ class NotificationAdapter(
                 holder.tvPriorityChip.visibility = View.GONE
                 holder.viewAccentBar.setBackgroundColor(Color.parseColor("#4CAF50"))
             }
+        }
+
+        // ── Click — open full notification view ────────────────
+        holder.itemView.setOnClickListener {
+            val context = holder.itemView.context
+            val intent  = Intent(context, FullNotificationActivity::class.java).apply {
+                putExtra("NOTIF_TITLE",     notif.title ?: "")
+                putExtra("NOTIF_TEXT",      notif.text  ?: "")
+                putExtra("NOTIF_SOURCE",    notif.source ?: "")
+                putExtra("NOTIF_PACKAGE",   notif.packageSource)
+                putExtra("NOTIF_TIMESTAMP", notif.timestamp)
+            }
+            context.startActivity(intent)
         }
     }
 
