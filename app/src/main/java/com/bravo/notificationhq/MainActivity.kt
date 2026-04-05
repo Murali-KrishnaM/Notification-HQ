@@ -6,16 +6,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,10 +35,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // ── EDGE TO EDGE DISPLAY (Draw behind status bar) ──
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-
         setContentView(R.layout.activity_main)
 
         recyclerView     = findViewById(R.id.recyclerViewSubjects)
@@ -55,28 +50,21 @@ class MainActivity : AppCompatActivity() {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
                     0 -> {
-                        // Academics — show list + FAB
                         fab.show()
                         renderCourseList(academicCourses, isDynamic = true)
                     }
                     1 -> {
-                        // Placements — open dedicated activity
                         fab.hide()
                         recyclerView.visibility     = View.GONE
                         layoutEmptyState.visibility = View.GONE
-                        startActivity(
-                            Intent(this@MainActivity, PlacementsActivity::class.java)
-                        )
+                        startActivity(Intent(this@MainActivity, PlacementsActivity::class.java))
                         tabLayout.post { tabLayout.getTabAt(0)?.select() }
                     }
                     2 -> {
-                        // NPTEL — open dedicated activity
                         fab.hide()
                         recyclerView.visibility     = View.GONE
                         layoutEmptyState.visibility = View.GONE
-                        startActivity(
-                            Intent(this@MainActivity, NptelActivity::class.java)
-                        )
+                        startActivity(Intent(this@MainActivity, NptelActivity::class.java))
                         tabLayout.post { tabLayout.getTabAt(0)?.select() }
                     }
                 }
@@ -85,14 +73,11 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        fab.setOnClickListener {
-            showAddCourseDialog()
-        }
+        fab.setOnClickListener { showAddCourseDialog() }
     }
 
     override fun onResume() {
         super.onResume()
-        // Refresh academic list when returning from PlacementsActivity
         if (tabLayout.selectedTabPosition == 0) {
             loadCoursesFromDatabase()
         }
@@ -102,7 +87,7 @@ class MainActivity : AppCompatActivity() {
     // LOAD FROM DB
     // ─────────────────────────────────────────────────────────────────────────
     private fun loadCoursesFromDatabase() {
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val db      = AppDatabase.getDatabase(this@MainActivity)
             val courses = db.courseDao().getAllCourses()
 
@@ -113,7 +98,11 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 academicCourses = courses
                 if (tabLayout.selectedTabPosition == 0) {
-                    renderCourseList(academicCourses, isDynamic = true, notifCounts = countMap)
+                    renderCourseList(
+                        academicCourses,
+                        isDynamic   = true,
+                        notifCounts = countMap
+                    )
                 }
             }
         }
@@ -149,22 +138,19 @@ class MainActivity : AppCompatActivity() {
     // NAVIGATE TO DETAIL
     // ─────────────────────────────────────────────────────────────────────────
     private fun openDetailActivity(course: CourseModel) {
-        val intent = Intent(this, DetailActivity::class.java).apply {
+        startActivity(Intent(this, DetailActivity::class.java).apply {
             putExtra("COURSE_NAME",   course.courseName)
             putExtra("COURSE_SYMBOL", course.courseSymbol)
-        }
-        startActivity(intent)
+        })
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // LONG PRESS — Edit / Delete
     // ─────────────────────────────────────────────────────────────────────────
     private fun showCourseOptionsSheet(course: CourseModel) {
-        val items = arrayOf("✏️  Edit Course", "🗑️  Delete Course")
-        // ── UPDATED TO USE DARK THEME ──
-        MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
+        AlertDialog.Builder(this)
             .setTitle(course.courseName)
-            .setItems(items) { _, which ->
+            .setItems(arrayOf("✏️  Edit Course", "🗑️  Delete Course")) { _, which ->
                 when (which) {
                     0 -> showEditCourseDialog(course)
                     1 -> confirmDeleteCourse(course)
@@ -178,12 +164,11 @@ class MainActivity : AppCompatActivity() {
     // CONFIRM DELETE
     // ─────────────────────────────────────────────────────────────────────────
     private fun confirmDeleteCourse(course: CourseModel) {
-        // ── UPDATED TO USE DARK THEME ──
-        MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
+        AlertDialog.Builder(this)
             .setTitle("Delete \"${course.courseName}\"?")
             .setMessage("This will permanently delete the course and all its notifications.")
             .setPositiveButton("Delete") { _, _ ->
-                CoroutineScope(Dispatchers.IO).launch {
+                lifecycleScope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(this@MainActivity)
                     db.courseDao().deleteCourse(course)
                     db.notificationDao().deleteNotificationsForCourse(course.courseName)
@@ -206,8 +191,7 @@ class MainActivity : AppCompatActivity() {
     // EDIT COURSE DIALOG
     // ─────────────────────────────────────────────────────────────────────────
     private fun showEditCourseDialog(course: CourseModel) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
-
+        val dialogView      = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
         val tilCourseName   = dialogView.findViewById<TextInputLayout>(R.id.tilCourseName)
         val tilCourseSymbol = dialogView.findViewById<TextInputLayout>(R.id.tilCourseSymbol)
         val tilCourseId     = dialogView.findViewById<TextInputLayout>(R.id.tilCourseId)
@@ -225,8 +209,7 @@ class MainActivity : AppCompatActivity() {
         etWhatsappGroup.setText(course.whatsappGroupName ?: "")
         etClassroomName.setText(course.classroomName ?: "")
 
-        // ── UPDATED TO USE DARK THEME ──
-        val dialog = MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Edit Course")
             .setView(dialogView)
             .setPositiveButton("Save", null)
@@ -235,7 +218,7 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
 
-        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             tilCourseName.error   = null
             tilCourseSymbol.error = null
             tilCourseId.error     = null
@@ -251,7 +234,6 @@ class MainActivity : AppCompatActivity() {
             if (!isValid) return@setOnClickListener
 
             val oldName = course.courseName
-
             val updatedCourse = course.copy(
                 courseName        = newName,
                 courseSymbol      = newSymbol.uppercase(),
@@ -261,7 +243,7 @@ class MainActivity : AppCompatActivity() {
                 classroomName     = etClassroomName.text.toString().trim().ifEmpty { null }
             )
 
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(this@MainActivity)
                 db.courseDao().updateCourse(updatedCourse)
                 if (oldName != newName) {
@@ -271,7 +253,11 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "✅ \"$newName\" updated!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "✅ \"$newName\" updated!",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     dialog.dismiss()
                     loadCoursesFromDatabase()
                 }
@@ -283,8 +269,7 @@ class MainActivity : AppCompatActivity() {
     // ADD COURSE DIALOG
     // ─────────────────────────────────────────────────────────────────────────
     private fun showAddCourseDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
-
+        val dialogView      = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
         val tilCourseName   = dialogView.findViewById<TextInputLayout>(R.id.tilCourseName)
         val tilCourseSymbol = dialogView.findViewById<TextInputLayout>(R.id.tilCourseSymbol)
         val tilCourseId     = dialogView.findViewById<TextInputLayout>(R.id.tilCourseId)
@@ -295,8 +280,7 @@ class MainActivity : AppCompatActivity() {
         val etWhatsappGroup = dialogView.findViewById<TextInputEditText>(R.id.etWhatsappGroup)
         val etClassroomName = dialogView.findViewById<TextInputEditText>(R.id.etClassroomName)
 
-        // ── UPDATED TO USE DARK THEME ──
-        val dialog = MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
+        val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setPositiveButton("Save", null)
             .setNegativeButton("Cancel") { d, _ -> d.dismiss() }
@@ -304,7 +288,7 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
 
-        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             tilCourseName.error   = null
             tilCourseSymbol.error = null
             tilCourseId.error     = null
@@ -328,11 +312,15 @@ class MainActivity : AppCompatActivity() {
                 classroomName     = etClassroomName.text.toString().trim().ifEmpty { null }
             )
 
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(this@MainActivity)
                 db.courseDao().insertCourse(newCourse)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "✅ $name added!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "✅ $name added!",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     dialog.dismiss()
                     loadCoursesFromDatabase()
                 }

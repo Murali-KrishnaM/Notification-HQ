@@ -8,12 +8,12 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,18 +40,15 @@ class PlacementsActivity : AppCompatActivity() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // LOAD CHANNELS FROM DB
+    // LOAD CHANNELS
     // ─────────────────────────────────────────────────────────────────────────
     private fun loadChannels() {
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val db       = AppDatabase.getDatabase(this@PlacementsActivity)
             val channels = db.placementChannelDao().getAllChannels()
 
-            // Badge count — notifications routed to BUCKET_PLACEMENTS
-            // Individual channel counts use the channel label as source key
             val countMap = channels.associate { channel ->
-                channel.label to db.notificationDao()
-                    .getCountForCourse(channel.label)
+                channel.label to db.notificationDao().getCountForCourse(channel.label)
             }
 
             withContext(Dispatchers.Main) {
@@ -63,14 +60,10 @@ class PlacementsActivity : AppCompatActivity() {
                     layoutEmptyState.visibility = View.GONE
 
                     recyclerView.adapter = PlacementChannelAdapter(
-                        channels    = channels,
-                        notifCounts = countMap,
-                        onItemClick = { channel ->
-                            openChannelDetail(channel)
-                        },
-                        onItemLongClick = { channel ->
-                            showChannelOptionsSheet(channel)
-                        }
+                        channels        = channels,
+                        notifCounts     = countMap,
+                        onItemClick     = { channel -> openChannelDetail(channel) },
+                        onItemLongClick = { channel -> showChannelOptionsSheet(channel) }
                     )
                 }
             }
@@ -78,24 +71,22 @@ class PlacementsActivity : AppCompatActivity() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // OPEN DETAIL — reuse DetailActivity with channel label as course name
+    // OPEN DETAIL
     // ─────────────────────────────────────────────────────────────────────────
     private fun openChannelDetail(channel: PlacementChannelModel) {
-        val intent = Intent(this, DetailActivity::class.java).apply {
+        startActivity(Intent(this, DetailActivity::class.java).apply {
             putExtra("COURSE_NAME",   channel.label)
             putExtra("COURSE_SYMBOL", "🏢")
-        }
-        startActivity(intent)
+        })
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // LONG PRESS OPTIONS
     // ─────────────────────────────────────────────────────────────────────────
     private fun showChannelOptionsSheet(channel: PlacementChannelModel) {
-        val items = arrayOf("✏️  Edit Channel", "🗑️  Delete Channel")
         AlertDialog.Builder(this)
             .setTitle(channel.label)
-            .setItems(items) { _, which ->
+            .setItems(arrayOf("✏️  Edit Channel", "🗑️  Delete Channel")) { _, which ->
                 when (which) {
                     0 -> showEditChannelDialog(channel)
                     1 -> confirmDeleteChannel(channel)
@@ -113,7 +104,7 @@ class PlacementsActivity : AppCompatActivity() {
             .setTitle("Delete \"${channel.label}\"?")
             .setMessage("This will remove the channel and all its captured notifications.")
             .setPositiveButton("Delete") { _, _ ->
-                CoroutineScope(Dispatchers.IO).launch {
+                lifecycleScope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(this@PlacementsActivity)
                     db.placementChannelDao().deleteChannel(channel)
                     db.notificationDao().deleteNotificationsForCourse(channel.label)
@@ -136,14 +127,12 @@ class PlacementsActivity : AppCompatActivity() {
     // ADD CHANNEL DIALOG
     // ─────────────────────────────────────────────────────────────────────────
     private fun showAddChannelDialog() {
-        val dialogView = LayoutInflater.from(this)
-            .inflate(R.layout.dialog_add_channel, null)
-
-        val tilLabel  = dialogView.findViewById<TextInputLayout>(R.id.tilChannelLabel)
-        val tilEmails = dialogView.findViewById<TextInputLayout>(R.id.tilPlacementEmails)
-        val etLabel   = dialogView.findViewById<TextInputEditText>(R.id.etChannelLabel)
-        val etWaGroup = dialogView.findViewById<TextInputEditText>(R.id.etPlacementWaGroup)
-        val etEmails  = dialogView.findViewById<TextInputEditText>(R.id.etPlacementEmails)
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_channel, null)
+        val tilLabel   = dialogView.findViewById<TextInputLayout>(R.id.tilChannelLabel)
+        val tilEmails  = dialogView.findViewById<TextInputLayout>(R.id.tilPlacementEmails)
+        val etLabel    = dialogView.findViewById<TextInputEditText>(R.id.etChannelLabel)
+        val etWaGroup  = dialogView.findViewById<TextInputEditText>(R.id.etPlacementWaGroup)
+        val etEmails   = dialogView.findViewById<TextInputEditText>(R.id.etPlacementEmails)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
@@ -161,7 +150,6 @@ class PlacementsActivity : AppCompatActivity() {
             val waGroup = etWaGroup.text.toString().trim()
             val emails  = etEmails.text.toString().trim()
 
-            // Validation — label required, and at least one channel
             var isValid = true
             if (label.isEmpty()) {
                 tilLabel.error = "Channel label is required"
@@ -179,7 +167,7 @@ class PlacementsActivity : AppCompatActivity() {
                 emailAddresses    = emails
             )
 
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(this@PlacementsActivity)
                 db.placementChannelDao().insertChannel(newChannel)
 
@@ -197,19 +185,16 @@ class PlacementsActivity : AppCompatActivity() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // EDIT CHANNEL DIALOG — pre-filled
+    // EDIT CHANNEL DIALOG
     // ─────────────────────────────────────────────────────────────────────────
     private fun showEditChannelDialog(channel: PlacementChannelModel) {
-        val dialogView = LayoutInflater.from(this)
-            .inflate(R.layout.dialog_add_channel, null)
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_channel, null)
+        val tilLabel   = dialogView.findViewById<TextInputLayout>(R.id.tilChannelLabel)
+        val tilEmails  = dialogView.findViewById<TextInputLayout>(R.id.tilPlacementEmails)
+        val etLabel    = dialogView.findViewById<TextInputEditText>(R.id.etChannelLabel)
+        val etWaGroup  = dialogView.findViewById<TextInputEditText>(R.id.etPlacementWaGroup)
+        val etEmails   = dialogView.findViewById<TextInputEditText>(R.id.etPlacementEmails)
 
-        val tilLabel  = dialogView.findViewById<TextInputLayout>(R.id.tilChannelLabel)
-        val tilEmails = dialogView.findViewById<TextInputLayout>(R.id.tilPlacementEmails)
-        val etLabel   = dialogView.findViewById<TextInputEditText>(R.id.etChannelLabel)
-        val etWaGroup = dialogView.findViewById<TextInputEditText>(R.id.etPlacementWaGroup)
-        val etEmails  = dialogView.findViewById<TextInputEditText>(R.id.etPlacementEmails)
-
-        // Pre-fill
         etLabel.setText(channel.label)
         etWaGroup.setText(channel.whatsappGroupName ?: "")
         etEmails.setText(channel.emailAddresses)
@@ -243,18 +228,16 @@ class PlacementsActivity : AppCompatActivity() {
             if (!isValid) return@setOnClickListener
 
             val oldLabel = channel.label
-
             val updatedChannel = channel.copy(
                 label             = newLabel,
                 whatsappGroupName = newWaGroup.ifEmpty { null },
                 emailAddresses    = newEmails
             )
 
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getDatabase(this@PlacementsActivity)
                 db.placementChannelDao().updateChannel(updatedChannel)
 
-                // Re-link notifications if label changed
                 if (oldLabel != newLabel) {
                     db.notificationDao().updateCourseNameInNotifications(
                         oldName = oldLabel,
