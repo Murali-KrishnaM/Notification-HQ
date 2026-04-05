@@ -1,29 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:background="@color/bg_deep">
 
-    <!-- Header bar (matches main screen style) -->
+    <!-- Top glow line — green accent (matches academics theme) -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="2dp"
+        android:background="@drawable/glow_line_green"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- ══════════════════  HEADER  ══════════════════ -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/headerBar"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="#4CAF50"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:background="@drawable/header_glass_bg"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="52dp"
+        android:paddingBottom="20dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Label pill -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="COURSE FEED"
+            android:textColor="@color/accent_green"
+            android:textSize="10sp"
+            android:letterSpacing="0.22"
+            android:fontFamily="@font/mono_font"
+            android:background="@drawable/label_pill_green"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:layout_marginBottom="8dp" />
 
         <TextView
             android:id="@+id/tvDetailTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Subject Name"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF" />
+            android:textSize="26sp"
+            android:fontFamily="@font/display_font"
+            android:textColor="@color/text_primary" />
 
         <TextView
             android:id="@+id/tvDetailSubtitle"
@@ -31,25 +61,39 @@
             android:layout_height="wrap_content"
             android:text="All notifications"
             android:textSize="13sp"
-            android:textColor="#E8F5E9"
-            android:layout_marginTop="2dp" />
+            android:textColor="@color/text_muted"
+            android:layout_marginTop="3dp" />
 
     </LinearLayout>
 
-    <!-- Content area -->
+    <!-- Separator -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="@color/divider_color"
+        android:id="@+id/headerDivider"
+        app:layout_constraintTop_toBottomOf="@id/headerBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- ══════════════════  CONTENT  ══════════════════ -->
     <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/headerDivider"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewDetail"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingTop="8dp"
-            android:paddingBottom="16dp" />
+            android:paddingTop="10dp"
+            android:paddingBottom="24dp" />
 
-        <!-- Empty state for detail screen -->
+        <!-- Empty State -->
         <LinearLayout
             android:id="@+id/layoutDetailEmptyState"
             android:layout_width="match_parent"
@@ -58,10 +102,12 @@
             android:gravity="center"
             android:visibility="gone">
 
-            <ImageView
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:src="@android:drawable/ic_menu_agenda"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="◈"
+                android:textSize="48sp"
+                android:textColor="@color/accent_green"
                 android:alpha="0.2" />
 
             <TextView
@@ -70,8 +116,8 @@
                 android:layout_marginTop="20dp"
                 android:text="No notifications yet"
                 android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#9E9E9E" />
+                android:fontFamily="@font/display_font"
+                android:textColor="@color/text_muted" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -79,7 +125,7 @@
                 android:layout_marginTop="8dp"
                 android:text="Messages from this course will appear here"
                 android:textSize="13sp"
-                android:textColor="#BDBDBD"
+                android:textColor="@color/text_hint"
                 android:gravity="center"
                 android:paddingStart="40dp"
                 android:paddingEnd="40dp" />
@@ -88,4 +134,4 @@
 
     </FrameLayout>
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

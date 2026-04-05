@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    subject_symbol_bg.xml
+    Rounded square used as the coloured avatar for each subject card.
+    Fill color is overridden dynamically in the adapter (setColorFilter / backgroundTint).
+    Default fill = accent_green.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#4CAF50" />
-    <corners android:radius="12dp" />
+    <solid android:color="#00E5A0" />
+    <corners android:radius="14dp" />
 </shape>

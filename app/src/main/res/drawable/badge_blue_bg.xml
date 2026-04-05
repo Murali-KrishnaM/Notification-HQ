@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- badge_bg.xml — pill badge for notification count, neon green -->
+<!-- badge_blue_bg.xml — pill badge for placement channel notification count -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#00E5A0" />
+    <solid android:color="#4D9EFF" />
     <corners android:radius="20dp" />
 </shape>

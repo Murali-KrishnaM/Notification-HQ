@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- badge_bg.xml — pill badge for notification count, neon green -->
+<!-- icon_circle_green.xml — circular icon background for the Add Course dialog header -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
+    android:shape="oval">
     <solid android:color="#00E5A0" />
-    <corners android:radius="20dp" />
 </shape>

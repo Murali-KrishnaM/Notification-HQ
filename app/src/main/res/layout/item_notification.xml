@@ -1,23 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    item_notification.xml
+    Each notification row card. Accent bar color set by NotificationAdapter.
+-->
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cardNotification"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="12dp"
-    android:layout_marginEnd="12dp"
+    android:layout_marginStart="14dp"
+    android:layout_marginEnd="14dp"
     android:layout_marginTop="6dp"
     android:layout_marginBottom="6dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="3dp"
-    app:cardBackgroundColor="#FFFFFF">
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/card_bg">
 
-    <!-- Left accent bar — color is set in NotificationAdapter based on tag -->
+    <!-- Left accent bar — color set dynamically -->
     <View
         android:id="@+id/viewAccentBar"
-        android:layout_width="5dp"
+        android:layout_width="3dp"
         android:layout_height="match_parent"
-        android:background="#4CAF50" />
+        android:background="@color/accent_green" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -34,52 +39,52 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="10dp">
 
-            <!-- Source chip (WhatsApp / Gmail / Classroom) -->
             <TextView
                 android:id="@+id/tvSource"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="WhatsApp"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
-                android:textColor="#FFFFFF"
-                android:background="@drawable/chip_source_bg"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp" />
+                android:letterSpacing="0.06"
+                android:textColor="@color/text_primary"
+                android:background="@drawable/chip_source_dark"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp" />
 
-            <!-- Priority chip — URGENT or DUE, hidden when neither -->
             <TextView
                 android:id="@+id/tvPriorityChip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="🚨 URGENT"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
+                android:letterSpacing="0.06"
                 android:textColor="#FFFFFF"
-                android:background="@drawable/chip_urgent_bg"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp"
+                android:background="@drawable/chip_urgent_dark"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
                 android:visibility="gone" />
 
         </LinearLayout>
 
-        <!-- Row 2: sender / group title -->
+        <!-- Row 2: title -->
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Group Name"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:textColor="#1A1A1A"
-            android:layout_marginBottom="5dp" />
+            android:fontFamily="@font/display_font"
+            android:textSize="15sp"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="6dp" />
 
         <!-- Row 3: message body -->
         <TextView
@@ -87,9 +92,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Message content goes here..."
-            android:textSize="14sp"
-            android:textColor="#444444"
-            android:lineSpacingMultiplier="1.3"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:lineSpacingMultiplier="1.4"
             android:maxLines="4"
             android:ellipsize="end" />
 

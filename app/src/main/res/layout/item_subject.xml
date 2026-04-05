@@ -1,37 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    item_subject.xml
+    Dark glass card for each subject/course in the Academics tab.
+    Accent color on the symbol pill is set dynamically by the adapter.
+-->
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cardSubject"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="12dp"
-    android:layout_marginEnd="12dp"
+    android:layout_marginStart="14dp"
+    android:layout_marginEnd="14dp"
     android:layout_marginTop="6dp"
     android:layout_marginBottom="6dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?android:attr/selectableItemBackground"
-    app:cardCornerRadius="14dp"
-    app:cardElevation="3dp"
-    app:cardBackgroundColor="#FFFFFF">
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/card_bg">
+
+    <!-- Left neon accent bar — width 3dp, color set by adapter -->
+    <View
+        android:id="@+id/viewSubjectAccent"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:background="@color/accent_green" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="18dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
         android:gravity="center_vertical">
 
-        <!-- Colored symbol pill (e.g. "NLPA") -->
+        <!-- Colored symbol pill -->
         <TextView
             android:id="@+id/tvSubjectSymbol"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
             android:gravity="center"
             android:text="CS"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:letterSpacing="0.05"
+            android:textColor="@color/bg_deep"
             android:background="@drawable/subject_symbol_bg" />
 
         <!-- Name + course ID -->
@@ -47,18 +64,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Subject Name"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:textColor="#1A1A1A" />
+                android:textSize="16sp"
+                android:fontFamily="@font/display_font"
+                android:textColor="@color/text_primary" />
 
             <TextView
                 android:id="@+id/tvCourseId"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="AD23B32"
-                android:textSize="12sp"
-                android:textColor="#757575"
-                android:layout_marginTop="2dp" />
+                android:textSize="11sp"
+                android:fontFamily="@font/mono_font"
+                android:textColor="@color/text_hint"
+                android:layout_marginTop="3dp" />
 
         </LinearLayout>
 
@@ -68,14 +86,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="3"
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/bg_deep"
             android:background="@drawable/badge_bg"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:minWidth="28dp"
             android:gravity="center"
             android:visibility="gone" />

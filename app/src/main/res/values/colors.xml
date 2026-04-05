@@ -1,5 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    ══════════════════════════════════════════════════════
+    NOTIFICATION HQ — DARK THEME COLOR SYSTEM
+    ══════════════════════════════════════════════════════
+    bg_deep         → base screen background  #0D0F14
+    card_bg         → glass card surface      #161A23
+    input_bg        → form field fill         #1C2030
+    accent_green    → Academics neon          #00E5A0
+    accent_blue     → Placements neon         #4D9EFF
+    accent_amber    → NPTEL neon              #FFB340
+    text_primary    → full-white text         #F0F2F8
+    text_secondary  → body copy               #A8AEBA
+    text_muted      → secondary labels        #6B7280
+    text_hint       → placeholder / hint      #3D4352
+    divider_color   → subtle lines            #1E2435
+    ripple_green    → FAB / tab ripple        #1A4D3A
+    ══════════════════════════════════════════════════════
+-->
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="bg_deep">#0D0F14</color>
+    <color name="card_bg">#161A23</color>
+    <color name="input_bg">#1C2030</color>
+
+    <color name="accent_green">#00E5A0</color>
+    <color name="accent_blue">#4D9EFF</color>
+    <color name="accent_amber">#FFB340</color>
+    <color name="accent_red">#FF4D6A</color>
+
+    <color name="text_primary">#F0F2F8</color>
+    <color name="text_secondary">#A8AEBA</color>
+    <color name="text_muted">#6B7280</color>
+    <color name="text_hint">#3D4352</color>
+
+    <color name="divider_color">#1E2435</color>
+    <color name="ripple_green">#1A4D3A</color>
+    <color name="ripple_blue">#172B4D</color>
+    <color name="ripple_amber">#3D2E00</color>
 </resources>

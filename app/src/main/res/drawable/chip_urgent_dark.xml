@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    chip_urgent_bg.xml  ── UPDATED (dark neon red replacement)
-    Drop into res/drawable/ — replaces the old solid #D32F2F chip.
-    All adapter references to @drawable/chip_urgent_bg remain valid.
+    chip_urgent_dark.xml
+    Replaces old solid-red chip_urgent_bg.
+    Neon red with a slight glow border for the futuristic look.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>

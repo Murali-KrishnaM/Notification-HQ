@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    chip_source_bg.xml  ── UPDATED (dark glass replacement)
-    ─────────────────────────────────────────────────────────
-    The original was a flat #424242 rectangle.
-    This version is a dark frosted glass pill matching the new theme.
-    Drop this file into res/drawable/ — it replaces the old one 1-for-1.
-    Any adapter code referencing @drawable/chip_source_bg still works.
+    chip_source_dark.xml
+    Replaces the old solid-#424242 chip_source_bg.
+    Now a glass-dark pill with a very subtle white border.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Fill -->
     <item>
         <shape android:shape="rectangle">
             <solid android:color="#252B3B" />
             <corners android:radius="20dp" />
         </shape>
     </item>
+    <!-- Subtle border -->
     <item>
         <shape android:shape="rectangle">
             <stroke android:width="1dp" android:color="#30FFFFFF" />

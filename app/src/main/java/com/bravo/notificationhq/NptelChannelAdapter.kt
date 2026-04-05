@@ -20,8 +20,6 @@ class NptelChannelAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        // Reuse item_placement_channel layout — same structure, accent bar
-        // color is overridden below to amber to match NPTEL theme
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_placement_channel, parent, false)
         return ViewHolder(view)
@@ -30,9 +28,9 @@ class NptelChannelAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val channel = channels[position]
 
-        // Override accent bar color to amber for NPTEL
+        // ── Override accent bar color to NEON AMBER for NPTEL ──
         holder.itemView.findViewById<View>(R.id.viewChannelAccent)
-            .setBackgroundColor(android.graphics.Color.parseColor("#F57F17"))
+            .setBackgroundColor(0xFFFFB340.toInt())
 
         holder.tvLabel.text = channel.label
 

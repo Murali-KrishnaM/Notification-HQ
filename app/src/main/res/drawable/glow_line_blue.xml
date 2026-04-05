@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- glow_line_blue.xml — 2dp top accent bar, neon blue gradient -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="0"
+        android:startColor="#004D9EFF"
+        android:centerColor="#CC4D9EFF"
+        android:endColor="#004D9EFF" />
+</shape>

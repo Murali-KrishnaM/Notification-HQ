@@ -1,7 +1,6 @@
 package com.bravo.notificationhq
 
 import android.content.Intent
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +10,11 @@ import androidx.recyclerview.widget.RecyclerView
 class NotificationAdapter(
     private val notifications: List<NotificationModel>
 ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
+
+    // ── THE NEON PALETTE FOR ACCENT BARS ──
+    private val colorNeonGreen = 0xFF00E5A0.toInt()
+    private val colorNeonRed   = 0xFFFF4D6A.toInt()
+    private val colorNeonAmber = 0xFFFFB340.toInt()
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvTitle: TextView        = itemView.findViewById(R.id.tvTitle)
@@ -42,36 +46,39 @@ class NotificationAdapter(
 
         // ── Source chip ────────────────────────────────────────
         val source = notif.source ?: ""
-        val (sourceLabel, sourceColor) = when {
-            notif.packageSource.contains("whatsapp", ignoreCase = true) ->
-                Pair("WhatsApp", Color.parseColor("#075E54"))
-            notif.packageSource.contains("gmail", ignoreCase = true) ->
-                Pair("Gmail", Color.parseColor("#D93025"))
-            notif.packageSource.contains("classroom", ignoreCase = true) ->
-                Pair("Classroom", Color.parseColor("#1A73E8"))
-            else ->
-                Pair(source.take(12), Color.parseColor("#424242"))
+        val sourceLabel = when {
+            notif.packageSource.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
+            notif.packageSource.contains("gmail", ignoreCase = true) -> "Gmail"
+            notif.packageSource.contains("classroom", ignoreCase = true) -> "Classroom"
+            else -> source.take(12)
         }
+
         holder.tvSource.text = sourceLabel
-        holder.tvSource.background.setTint(sourceColor)
+
+        // Note: We removed the .setTint() here because the new dark theme
+        // uses a custom glass drawable background for this chip. Tinting
+        // it manually breaks the glass effect.
 
         // ── Priority chip + accent bar ─────────────────────────
         when {
             text.contains("🚨 URGENT") -> {
                 holder.tvPriorityChip.visibility = View.VISIBLE
                 holder.tvPriorityChip.text = "🚨 URGENT"
-                holder.tvPriorityChip.background.setTint(Color.parseColor("#D32F2F"))
-                holder.viewAccentBar.setBackgroundColor(Color.parseColor("#D32F2F"))
+                holder.tvPriorityChip.setBackgroundResource(R.drawable.chip_urgent_dark)
+                holder.viewAccentBar.setBackgroundColor(colorNeonRed)
             }
             text.contains("⏰ DUE") -> {
                 holder.tvPriorityChip.visibility = View.VISIBLE
                 holder.tvPriorityChip.text = "⏰ DUE"
-                holder.tvPriorityChip.background.setTint(Color.parseColor("#F57F17"))
-                holder.viewAccentBar.setBackgroundColor(Color.parseColor("#F57F17"))
+                // Assuming Claude provided chip_due_dark.xml. If not, fallback to urgent chip style.
+                holder.tvPriorityChip.setBackgroundResource(
+                    holder.itemView.context.resources.getIdentifier("chip_due_dark", "drawable", holder.itemView.context.packageName).takeIf { it != 0 } ?: R.drawable.chip_urgent_dark
+                )
+                holder.viewAccentBar.setBackgroundColor(colorNeonAmber)
             }
             else -> {
                 holder.tvPriorityChip.visibility = View.GONE
-                holder.viewAccentBar.setBackgroundColor(Color.parseColor("#4CAF50"))
+                holder.viewAccentBar.setBackgroundColor(colorNeonGreen)
             }
         }
 

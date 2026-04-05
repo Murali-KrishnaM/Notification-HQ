@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" tools:ignore="ProtectedPermissions" />
+
     <application
             android:allowBackup="true"
             android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,19 +13,21 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:theme="@style/Theme.NotificationHQ">
+
         <activity
                 android:name=".MainActivity"
                 android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
-
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
         <activity android:name=".DetailActivity" android:exported="false" />
         <activity android:name=".PlacementsActivity" />
         <activity android:name=".NptelActivity" />
         <activity android:name=".FullNotificationActivity" />
+
         <service android:name=".NotificationListener"
                  android:label="Notification HQ Listener"
                  android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
@@ -32,6 +36,7 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
     </application>
 
 </manifest>

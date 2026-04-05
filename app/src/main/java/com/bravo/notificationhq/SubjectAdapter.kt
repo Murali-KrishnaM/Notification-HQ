@@ -1,5 +1,6 @@
 package com.bravo.notificationhq
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,21 +11,21 @@ class SubjectAdapter(
     private val courses: List<CourseModel>,
     private val notifCounts: Map<String, Int> = emptyMap(),
     private val onItemClick: (CourseModel) -> Unit,
-    private val onItemLongClick: (CourseModel) -> Unit  // NEW
+    private val onItemLongClick: (CourseModel) -> Unit
 ) : RecyclerView.Adapter<SubjectAdapter.ViewHolder>() {
 
-    private val symbolColors = listOf(
-        "#4CAF50",
-        "#1A73E8",
-        "#F57F17",
-        "#7B1FA2",
-        "#00838F",
-        "#D32F2F",
-        "#2E7D32",
-        "#0277BD"
+    // ── THE NEW NEON COLORS ──
+    private val neonColors = listOf(
+        0xFF00E5A0.toInt(),  // neon green
+        0xFF4D9EFF.toInt(),  // neon blue
+        0xFFFFB340.toInt(),  // neon amber
+        0xFFFF4D6A.toInt(),  // neon red
+        0xFFB06BFF.toInt()   // neon violet
     )
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        // ── WE MUST BIND THE NEW ACCENT VIEW HERE ──
+        val viewSubjectAccent: View = itemView.findViewById(R.id.viewSubjectAccent)
         val tvSymbol: TextView = itemView.findViewById(R.id.tvSubjectSymbol)
         val tvName: TextView = itemView.findViewById(R.id.tvSubjectName)
         val tvCourseId: TextView = itemView.findViewById(R.id.tvCourseId)
@@ -48,10 +49,10 @@ class SubjectAdapter(
         }
         holder.tvSymbol.text = symbol
 
-        val colorHex = symbolColors[position % symbolColors.size]
-        holder.tvSymbol.background.setTint(
-            android.graphics.Color.parseColor(colorHex)
-        )
+        // ── APPLY NEON COLORS TO THE BACKGROUND AND ACCENT BAR ──
+        val color = neonColors[position % neonColors.size]
+        holder.viewSubjectAccent.setBackgroundColor(color)
+        holder.tvSymbol.backgroundTintList = ColorStateList.valueOf(color)
 
         // ── Name & Course ID ───────────────────────────────────
         holder.tvName.text = course.courseName ?: "Unnamed Course"

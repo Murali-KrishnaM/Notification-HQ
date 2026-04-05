@@ -1,5 +1,6 @@
 package com.bravo.notificationhq
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +15,17 @@ class PlacementChannelAdapter(
     private val onItemLongClick: (PlacementChannelModel) -> Unit
 ) : RecyclerView.Adapter<PlacementChannelAdapter.ViewHolder>() {
 
+    // ── THE NEW NEON COLORS (Matching SubjectAdapter) ──
+    private val neonColors = listOf(
+        0xFF00E5A0.toInt(),  // neon green
+        0xFF4D9EFF.toInt(),  // neon blue
+        0xFFFFB340.toInt(),  // neon amber
+        0xFFFF4D6A.toInt(),  // neon red
+        0xFFB06BFF.toInt()   // neon violet
+    )
+
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val viewChannelAccent: View   = itemView.findViewById(R.id.viewChannelAccent)
         val tvLabel: TextView         = itemView.findViewById(R.id.tvChannelLabel)
         val tvBadge: TextView         = itemView.findViewById(R.id.tvChannelNotifCount)
         val rowWaGroup: LinearLayout  = itemView.findViewById(R.id.rowWaGroup)
@@ -33,6 +44,10 @@ class PlacementChannelAdapter(
 
         holder.tvLabel.text = channel.label
 
+        // ── APPLY NEON COLORS TO ACCENT BAR ──
+        val color = neonColors[position % neonColors.size]
+        holder.viewChannelAccent.setBackgroundColor(color)
+
         // ── WhatsApp group row ─────────────────────────────────
         if (!channel.whatsappGroupName.isNullOrBlank()) {
             holder.rowWaGroup.visibility = View.VISIBLE
@@ -44,7 +59,6 @@ class PlacementChannelAdapter(
         // ── Email addresses ────────────────────────────────────
         if (channel.emailAddresses.isNotBlank()) {
             holder.tvEmails.visibility = View.VISIBLE
-            // Format: show each email on its own line
             holder.tvEmails.text = channel.emailAddresses
                 .split(",")
                 .map { it.trim() }

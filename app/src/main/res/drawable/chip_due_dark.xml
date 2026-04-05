@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    chip_urgent_bg.xml  ── UPDATED (dark neon red replacement)
-    Drop into res/drawable/ — replaces the old solid #D32F2F chip.
-    All adapter references to @drawable/chip_urgent_bg remain valid.
+    chip_due_dark.xml
+    Replaces old chip_due_bg (#F57F17 solid).
+    Dark amber base with glowing border for NPTEL deadline chips.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#3D0011" />
+            <solid android:color="#2E1E00" />
             <corners android:radius="20dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <stroke android:width="1dp" android:color="#CCFF4D6A" />
+            <stroke android:width="1dp" android:color="#CCFFB340" />
             <corners android:radius="20dp" />
         </shape>
     </item>

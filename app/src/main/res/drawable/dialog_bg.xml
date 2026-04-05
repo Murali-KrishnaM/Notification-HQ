@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    dialog_bg.xml
+    Background for all three Add-X dialogs.
+    Dark glass surface with rounded top corners (used inside a BottomSheet or AlertDialog).
+    Use cardBackgroundColor="@drawable/dialog_bg" on the root, or set window background.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#161A23" />
+    <corners android:radius="24dp" />
+</shape>

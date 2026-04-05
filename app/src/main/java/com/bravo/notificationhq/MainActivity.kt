@@ -6,10 +6,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.textfield.TextInputEditText
@@ -35,6 +36,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ── EDGE TO EDGE DISPLAY (Draw behind status bar) ──
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         setContentView(R.layout.activity_main)
 
         recyclerView     = findViewById(R.id.recyclerViewSubjects)
@@ -156,7 +161,8 @@ class MainActivity : AppCompatActivity() {
     // ─────────────────────────────────────────────────────────────────────────
     private fun showCourseOptionsSheet(course: CourseModel) {
         val items = arrayOf("✏️  Edit Course", "🗑️  Delete Course")
-        AlertDialog.Builder(this)
+        // ── UPDATED TO USE DARK THEME ──
+        MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
             .setTitle(course.courseName)
             .setItems(items) { _, which ->
                 when (which) {
@@ -172,7 +178,8 @@ class MainActivity : AppCompatActivity() {
     // CONFIRM DELETE
     // ─────────────────────────────────────────────────────────────────────────
     private fun confirmDeleteCourse(course: CourseModel) {
-        AlertDialog.Builder(this)
+        // ── UPDATED TO USE DARK THEME ──
+        MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
             .setTitle("Delete \"${course.courseName}\"?")
             .setMessage("This will permanently delete the course and all its notifications.")
             .setPositiveButton("Delete") { _, _ ->
@@ -218,7 +225,8 @@ class MainActivity : AppCompatActivity() {
         etWhatsappGroup.setText(course.whatsappGroupName ?: "")
         etClassroomName.setText(course.classroomName ?: "")
 
-        val dialog = AlertDialog.Builder(this)
+        // ── UPDATED TO USE DARK THEME ──
+        val dialog = MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
             .setTitle("Edit Course")
             .setView(dialogView)
             .setPositiveButton("Save", null)
@@ -227,7 +235,7 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
 
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             tilCourseName.error   = null
             tilCourseSymbol.error = null
             tilCourseId.error     = null
@@ -287,7 +295,8 @@ class MainActivity : AppCompatActivity() {
         val etWhatsappGroup = dialogView.findViewById<TextInputEditText>(R.id.etWhatsappGroup)
         val etClassroomName = dialogView.findViewById<TextInputEditText>(R.id.etClassroomName)
 
-        val dialog = AlertDialog.Builder(this)
+        // ── UPDATED TO USE DARK THEME ──
+        val dialog = MaterialAlertDialogBuilder(this, R.style.DialogTheme_NotificationHQ)
             .setView(dialogView)
             .setPositiveButton("Save", null)
             .setNegativeButton("Cancel") { d, _ -> d.dismiss() }
@@ -295,7 +304,7 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
 
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             tilCourseName.error   = null
             tilCourseSymbol.error = null
             tilCourseId.error     = null
