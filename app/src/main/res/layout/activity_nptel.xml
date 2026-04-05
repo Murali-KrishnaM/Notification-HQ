@@ -10,20 +10,21 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
+        <!-- Header -->
         <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#4CAF50"
-                android:paddingTop="48dp"
-                android:paddingBottom="20dp"
+                android:background="#F57F17"
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp"
+                android:paddingTop="48dp"
+                android:paddingBottom="20dp"
                 android:orientation="vertical">
 
             <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Notification HQ"
+                    android:text="NPTEL / SWAYAM"
                     android:textColor="#FFFFFF"
                     android:textSize="28sp"
                     android:textStyle="bold" />
@@ -31,59 +32,34 @@
             <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Your Academic Radar"
-                    android:textColor="#E8F5E9"
+                    android:text="Track your online course deadlines"
+                    android:textColor="#FFF8E1"
                     android:textSize="14sp" />
 
         </LinearLayout>
 
-        <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#FFFFFF"
-                app:tabIndicatorColor="#4CAF50"
-                app:tabSelectedTextColor="#4CAF50"
-                app:tabTextColor="#757575"
-                app:tabMode="fixed">
-
-            <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Academics" />
-
-            <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Placements" />
-
-            <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="NPTEL" />
-
-        </com.google.android.material.tabs.TabLayout>
-
+        <!-- Channel list -->
         <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
             <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerViewSubjects"
+                    android:id="@+id/recyclerViewNptelChannels"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:clipToPadding="false"
                     android:paddingTop="8dp"
                     android:paddingBottom="80dp" />
 
+            <!-- Empty state -->
             <LinearLayout
-                    android:id="@+id/layoutEmptyState"
+                    android:id="@+id/layoutNptelEmptyState"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:visibility="gone"
-                    android:paddingBottom="80dp">
+                    android:paddingBottom="80dp"
+                    android:visibility="gone">
 
                 <ImageView
                         android:layout_width="96dp"
@@ -95,7 +71,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="20dp"
-                        android:text="No courses yet"
+                        android:text="No NPTEL courses yet"
                         android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="#9E9E9E" />
@@ -104,7 +80,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Tap ＋ to add your first course"
+                        android:text="Tap ＋ to add an NPTEL course email"
                         android:textSize="14sp"
                         android:textColor="#BDBDBD"
                         android:gravity="center" />
@@ -115,16 +91,17 @@
 
     </LinearLayout>
 
+    <!-- FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabAddCourse"
+            android:id="@+id/fabAddNptelChannel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:layout_alignParentEnd="true"
             android:layout_margin="24dp"
-            android:backgroundTint="#4CAF50"
+            android:backgroundTint="#F57F17"
             android:src="@android:drawable/ic_input_add"
-            android:contentDescription="Add Course"
+            android:contentDescription="Add NPTEL Course"
             app:tint="#FFFFFF" />
 
 </RelativeLayout>

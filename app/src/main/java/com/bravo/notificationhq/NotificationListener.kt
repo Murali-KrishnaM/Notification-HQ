@@ -28,15 +28,6 @@ class NotificationListener : NotificationListenerService() {
             "nptel online", "nptel course", "week deadline", "assignment deadline"
         )
 
-        // NPTEL sender domains/addresses
-        private val NPTEL_SENDER_PATTERNS = listOf(
-            "nptel.iitm.ac.in",
-            "swayam.gov.in",
-            "onlinecourses.nptel.ac.in",
-            "no-reply@nptel",
-            "noreply@nptel"
-        )
-
         // Urgency keywords for WhatsApp
         private val URGENT_KEYWORDS = listOf(
             "room change", "room no", "cancel", "cancelled",
@@ -260,14 +251,39 @@ class NotificationListener : NotificationListenerService() {
 
         Log.d("NotifHQ", "Gmail received | sender: $senderLower | title: $rawTitle")
 
-        // ── PRIORITY 1: NPTEL sender check ────────────────────────────────
-        val isNptelSender = NPTEL_SENDER_PATTERNS.any { senderLower.contains(it) }
+        // ── PRIORITY 1: NPTEL — check DB channels first, then fallback keywords ──
+        val nptelChannels = db.nptelChannelDao().getAllChannels()
+
+        val allNptelEmails = nptelChannels
+            .flatMap { ch ->
+                ch.emailAddresses
+                    .split(",")
+                    .map { it.trim().lowercase() }
+                    .filter { it.isNotEmpty() }
+            }
+            .toSet()
+
+        val isNptelSender = allNptelEmails.any { nptelEmail ->
+            senderLower.contains(nptelEmail) || nptelEmail.contains(senderLower)
+        }
+
+        // Also match by content keywords as a fallback
         val isNptelContent = NPTEL_KEYWORDS.any { searchLower.contains(it) }
 
         if (isNptelSender || isNptelContent) {
-            val finalTitle = buildDueTitle(rawTitle, fullCorpus) ?: "📚 $rawTitle"
-            saveNotification(db, finalTitle, displayBody, BUCKET_NPTEL, "gmail")
-            Log.d("NotifHQ", "Gmail → NPTEL bucket")
+            // Try to find the specific NPTEL channel this email belongs to
+            val matchedNptelChannel = nptelChannels.firstOrNull { ch ->
+                ch.emailAddresses
+                    .split(",")
+                    .map { it.trim().lowercase() }
+                    .any { email -> senderLower.contains(email) || email.contains(senderLower) }
+            }
+
+            val nptelSource = matchedNptelChannel?.label ?: BUCKET_NPTEL
+            val finalTitle  = buildDueTitle(rawTitle, fullCorpus) ?: "📚 $rawTitle"
+
+            saveNotification(db, finalTitle, displayBody, nptelSource, "gmail")
+            Log.d("NotifHQ", "Gmail → NPTEL [$nptelSource]")
             return
         }
 
@@ -353,9 +369,9 @@ class NotificationListener : NotificationListenerService() {
      * Computes a match score between an email's corpus and a course.
      * Higher score = better match.
      * Scoring:
-     *   +3 if courseId found in corpus    (most specific — e.g. "AD23B32")
-     *   +2 if courseSymbol found          (e.g. "NLPA")
-     *   +1 if courseName found            (e.g. "Natural Language Processing")
+     * +3 if courseId found in corpus    (most specific — e.g. "AD23B32")
+     * +2 if courseSymbol found          (e.g. "NLPA")
+     * +1 if courseName found            (e.g. "Natural Language Processing")
      */
     private fun computeCourseMatchScore(
         searchLower: String,
@@ -380,8 +396,8 @@ class NotificationListener : NotificationListenerService() {
      * Tries to extract a sender email address from notification fields.
      * Gmail notifications embed the sender in the title or stdText
      * in formats like:
-     *   "John Doe" (title) + "john@example.com  message..." (stdText)
-     *   or the title itself is the email address
+     * "John Doe" (title) + "john@example.com  message..." (stdText)
+     * or the title itself is the email address
      */
     private fun extractSenderEmail(
         rawTitle: String,

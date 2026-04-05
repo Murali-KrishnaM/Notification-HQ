@@ -9,16 +9,18 @@ import androidx.room.RoomDatabase
     entities = [
         NotificationModel::class,
         CourseModel::class,
-        PlacementChannelModel::class   // NEW
+        PlacementChannelModel::class,
+        NptelChannelModel::class        // NEW
     ],
-    version = 4,                       // BUMPED from 3
+    version = 5,                        // BUMPED from 4
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun notificationDao(): NotificationDao
     abstract fun courseDao(): CourseDao
-    abstract fun placementChannelDao(): PlacementChannelDao   // NEW
+    abstract fun placementChannelDao(): PlacementChannelDao
+    abstract fun nptelChannelDao(): NptelChannelDao             // NEW
 
     companion object {
         @Volatile

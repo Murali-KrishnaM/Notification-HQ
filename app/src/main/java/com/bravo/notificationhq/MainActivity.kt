@@ -10,7 +10,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.textfield.TextInputEditText
@@ -25,13 +24,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var tabLayout: TabLayout
     private lateinit var layoutEmptyState: LinearLayout
+    private lateinit var fab: FloatingActionButton
 
     private var academicCourses = listOf<CourseModel>()
 
-    private val placementCourses = listOf(
-        CourseModel(id = -1, courseName = "Placement Cell Updates", courseSymbol = "PLAC", courseId = "PLAC-01"),
-        CourseModel(id = -2, courseName = "Interview Schedules",    courseSymbol = "INTR", courseId = "INTR-01")
-    )
     private val clubCourses = listOf(
         CourseModel(id = -3, courseName = "Coding Club",      courseSymbol = "CODE", courseId = "CLUB-01"),
         CourseModel(id = -4, courseName = "Photography Club", courseSymbol = "PHOT", courseId = "CLUB-02")
@@ -44,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         recyclerView     = findViewById(R.id.recyclerViewSubjects)
         tabLayout        = findViewById(R.id.tabLayout)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
+        fab              = findViewById(R.id.fabAddCourse)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -52,17 +49,47 @@ class MainActivity : AppCompatActivity() {
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
-                    0 -> renderCourseList(academicCourses, isDynamic = true)
-                    1 -> renderCourseList(placementCourses, isDynamic = false)
-                    2 -> renderCourseList(clubCourses, isDynamic = false)
+                    0 -> {
+                        // Academics — show list + FAB
+                        fab.show()
+                        renderCourseList(academicCourses, isDynamic = true)
+                    }
+                    1 -> {
+                        // Placements — open dedicated activity
+                        fab.hide()
+                        recyclerView.visibility     = View.GONE
+                        layoutEmptyState.visibility = View.GONE
+                        startActivity(
+                            Intent(this@MainActivity, PlacementsActivity::class.java)
+                        )
+                        tabLayout.post { tabLayout.getTabAt(0)?.select() }
+                    }
+                    2 -> {
+                        // NPTEL — open dedicated activity
+                        fab.hide()
+                        recyclerView.visibility     = View.GONE
+                        layoutEmptyState.visibility = View.GONE
+                        startActivity(
+                            Intent(this@MainActivity, NptelActivity::class.java)
+                        )
+                        tabLayout.post { tabLayout.getTabAt(0)?.select() }
+                    }
                 }
             }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        findViewById<FloatingActionButton>(R.id.fabAddCourse).setOnClickListener {
+        fab.setOnClickListener {
             showAddCourseDialog()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh academic list when returning from PlacementsActivity
+        if (tabLayout.selectedTabPosition == 0) {
+            loadCoursesFromDatabase()
         }
     }
 
@@ -103,11 +130,10 @@ class MainActivity : AppCompatActivity() {
             layoutEmptyState.visibility = View.GONE
 
             recyclerView.adapter = SubjectAdapter(
-                courses      = courses,
-                notifCounts  = notifCounts,
-                onItemClick  = { course -> openDetailActivity(course) },
+                courses         = courses,
+                notifCounts     = notifCounts,
+                onItemClick     = { course -> openDetailActivity(course) },
                 onItemLongClick = { course ->
-                    // Only allow edit/delete on real DB courses (not placeholder tabs)
                     if (course.id > 0) showCourseOptionsSheet(course)
                 }
             )
@@ -126,17 +152,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // LONG-PRESS BOTTOM SHEET — Edit / Delete
+    // LONG PRESS — Edit / Delete
     // ─────────────────────────────────────────────────────────────────────────
     private fun showCourseOptionsSheet(course: CourseModel) {
-        val sheet     = BottomSheetDialog(this)
-        val sheetView = LayoutInflater.from(this).inflate(
-            android.R.layout.simple_list_item_1, null
-        )
-
-        // Build a simple list manually inside an AlertDialog-style sheet
-        val items    = arrayOf("✏️  Edit Course", "🗑️  Delete Course")
-        val builder  = AlertDialog.Builder(this)
+        val items = arrayOf("✏️  Edit Course", "🗑️  Delete Course")
+        AlertDialog.Builder(this)
             .setTitle(course.courseName)
             .setItems(items) { _, which ->
                 when (which) {
@@ -145,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Cancel", null)
-        builder.show()
+            .show()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -154,12 +174,11 @@ class MainActivity : AppCompatActivity() {
     private fun confirmDeleteCourse(course: CourseModel) {
         AlertDialog.Builder(this)
             .setTitle("Delete \"${course.courseName}\"?")
-            .setMessage("This will permanently delete the course and all its notifications. This cannot be undone.")
+            .setMessage("This will permanently delete the course and all its notifications.")
             .setPositiveButton("Delete") { _, _ ->
                 CoroutineScope(Dispatchers.IO).launch {
                     val db = AppDatabase.getDatabase(this@MainActivity)
                     db.courseDao().deleteCourse(course)
-                    // Also delete all notifications routed to this course
                     db.notificationDao().deleteNotificationsForCourse(course.courseName)
 
                     withContext(Dispatchers.Main) {
@@ -177,7 +196,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // EDIT COURSE DIALOG — pre-filled
+    // EDIT COURSE DIALOG
     // ─────────────────────────────────────────────────────────────────────────
     private fun showEditCourseDialog(course: CourseModel) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
@@ -185,7 +204,6 @@ class MainActivity : AppCompatActivity() {
         val tilCourseName   = dialogView.findViewById<TextInputLayout>(R.id.tilCourseName)
         val tilCourseSymbol = dialogView.findViewById<TextInputLayout>(R.id.tilCourseSymbol)
         val tilCourseId     = dialogView.findViewById<TextInputLayout>(R.id.tilCourseId)
-
         val etCourseName    = dialogView.findViewById<TextInputEditText>(R.id.etCourseName)
         val etCourseSymbol  = dialogView.findViewById<TextInputEditText>(R.id.etCourseSymbol)
         val etCourseId      = dialogView.findViewById<TextInputEditText>(R.id.etCourseId)
@@ -193,7 +211,6 @@ class MainActivity : AppCompatActivity() {
         val etWhatsappGroup = dialogView.findViewById<TextInputEditText>(R.id.etWhatsappGroup)
         val etClassroomName = dialogView.findViewById<TextInputEditText>(R.id.etClassroomName)
 
-        // ── Pre-fill all fields with existing data ─────────────
         etCourseName.setText(course.courseName)
         etCourseSymbol.setText(course.courseSymbol)
         etCourseId.setText(course.courseId)
@@ -211,7 +228,6 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-
             tilCourseName.error   = null
             tilCourseSymbol.error = null
             tilCourseId.error     = null
@@ -221,21 +237,12 @@ class MainActivity : AppCompatActivity() {
             val newId     = etCourseId.text.toString().trim()
 
             var isValid = true
-            if (newName.isEmpty()) {
-                tilCourseName.error = "Course name is required"
-                isValid = false
-            }
-            if (newSymbol.isEmpty()) {
-                tilCourseSymbol.error = "Course symbol is required"
-                isValid = false
-            }
-            if (newId.isEmpty()) {
-                tilCourseId.error = "Course ID is required"
-                isValid = false
-            }
+            if (newName.isEmpty())   { tilCourseName.error   = "Required"; isValid = false }
+            if (newSymbol.isEmpty()) { tilCourseSymbol.error = "Required"; isValid = false }
+            if (newId.isEmpty())     { tilCourseId.error     = "Required"; isValid = false }
             if (!isValid) return@setOnClickListener
 
-            val oldCourseName = course.courseName  // capture before overwrite
+            val oldName = course.courseName
 
             val updatedCourse = course.copy(
                 courseName        = newName,
@@ -249,21 +256,14 @@ class MainActivity : AppCompatActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 val db = AppDatabase.getDatabase(this@MainActivity)
                 db.courseDao().updateCourse(updatedCourse)
-
-                // Re-link all old notifications to the new course name
-                if (oldCourseName != newName) {
+                if (oldName != newName) {
                     db.notificationDao().updateCourseNameInNotifications(
-                        oldName = oldCourseName,
+                        oldName = oldName,
                         newName = newName
                     )
                 }
-
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "✅ \"${newName}\" updated!",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this@MainActivity, "✅ \"$newName\" updated!", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                     loadCoursesFromDatabase()
                 }
@@ -280,7 +280,6 @@ class MainActivity : AppCompatActivity() {
         val tilCourseName   = dialogView.findViewById<TextInputLayout>(R.id.tilCourseName)
         val tilCourseSymbol = dialogView.findViewById<TextInputLayout>(R.id.tilCourseSymbol)
         val tilCourseId     = dialogView.findViewById<TextInputLayout>(R.id.tilCourseId)
-
         val etCourseName    = dialogView.findViewById<TextInputEditText>(R.id.etCourseName)
         val etCourseSymbol  = dialogView.findViewById<TextInputEditText>(R.id.etCourseSymbol)
         val etCourseId      = dialogView.findViewById<TextInputEditText>(R.id.etCourseId)
@@ -297,7 +296,6 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-
             tilCourseName.error   = null
             tilCourseSymbol.error = null
             tilCourseId.error     = null
@@ -307,18 +305,9 @@ class MainActivity : AppCompatActivity() {
             val id     = etCourseId.text.toString().trim()
 
             var isValid = true
-            if (name.isEmpty()) {
-                tilCourseName.error = "Course name is required"
-                isValid = false
-            }
-            if (symbol.isEmpty()) {
-                tilCourseSymbol.error = "Course symbol is required (e.g. NLPA)"
-                isValid = false
-            }
-            if (id.isEmpty()) {
-                tilCourseId.error = "Course ID is required (e.g. AD23B32)"
-                isValid = false
-            }
+            if (name.isEmpty())   { tilCourseName.error   = "Course name is required"; isValid = false }
+            if (symbol.isEmpty()) { tilCourseSymbol.error = "Course symbol is required"; isValid = false }
+            if (id.isEmpty())     { tilCourseId.error     = "Course ID is required"; isValid = false }
             if (!isValid) return@setOnClickListener
 
             val newCourse = CourseModel(
@@ -333,7 +322,6 @@ class MainActivity : AppCompatActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 val db = AppDatabase.getDatabase(this@MainActivity)
                 db.courseDao().insertCourse(newCourse)
-
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "✅ $name added!", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()

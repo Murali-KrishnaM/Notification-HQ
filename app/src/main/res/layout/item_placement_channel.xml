@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="3dp"
+        app:cardBackgroundColor="#FFFFFF">
+
+    <!-- Blue accent bar on left -->
+    <View
+            android:id="@+id/viewChannelAccent"
+            android:layout_width="5dp"
+            android:layout_height="match_parent"
+            android:background="#1A73E8" />
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp">
+
+        <!-- Row 1: label + badge -->
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+            <TextView
+                    android:id="@+id/tvChannelLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Placement Cell"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#1A1A1A" />
+
+            <TextView
+                    android:id="@+id/tvChannelNotifCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="3"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/badge_bg"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:minWidth="28dp"
+                    android:gravity="center"
+                    android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Row 2: WhatsApp chip (shown only if group linked) -->
+        <LinearLayout
+                android:id="@+id/rowWaGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="WA"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/chip_source_bg"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp" />
+
+            <TextView
+                    android:id="@+id/tvWaGroupName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Group Name"
+                    android:textSize="13sp"
+                    android:textColor="#444444" />
+
+        </LinearLayout>
+
+        <!-- Row 3: Email chips -->
+        <TextView
+                android:id="@+id/tvEmailAddresses"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="email@domain.com"
+                android:textSize="12sp"
+                android:textColor="#757575"
+                android:visibility="gone" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

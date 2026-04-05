@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:background="#FFFFFF">
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Add Placement Channel"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="#1A73E8"
+                android:layout_marginBottom="6dp" />
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connect a WhatsApp group or email address to automatically capture placement updates."
+                android:textSize="13sp"
+                android:textColor="#757575"
+                android:layout_marginBottom="20dp" />
+
+        <!-- Channel Label (required) -->
+        <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilChannelLabel"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:hint="Channel Label * (e.g. Placement Cell)"
+                app:boxStrokeColor="#1A73E8"
+                app:hintTextColor="#1A73E8"
+                app:errorEnabled="true">
+
+            <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etChannelLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapWords"
+                    android:imeOptions="actionNext" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Divider -->
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+            <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0" />
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="  Connect channels (at least one)  "
+                    android:textSize="11sp"
+                    android:textColor="#9E9E9E"
+                    android:textAllCaps="true" />
+
+            <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0" />
+
+        </LinearLayout>
+
+        <!-- WhatsApp Group -->
+        <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilPlacementWaGroup"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:hint="WhatsApp Group Name (optional)"
+                app:boxStrokeColor="#1A73E8"
+                app:hintTextColor="#1A73E8">
+
+            <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPlacementWaGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:imeOptions="actionNext" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Email addresses -->
+        <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilPlacementEmails"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:hint="Email Address(es) (comma separated)"
+                app:boxStrokeColor="#1A73E8"
+                app:hintTextColor="#1A73E8"
+                app:helperText="e.g. placement1@rajalakshmi.edu.in, placement2@rajalakshmi.edu.in"
+                app:helperTextEnabled="true">
+
+            <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPlacementEmails"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textEmailAddress|textMultiLine"
+                    android:minLines="2"
+                    android:imeOptions="actionDone" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+    </LinearLayout>
+</ScrollView>
