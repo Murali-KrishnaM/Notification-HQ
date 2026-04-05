@@ -7,19 +7,21 @@ import androidx.room.Query
 @Dao
 interface NotificationDao {
 
-    // All notifications, newest first
     @Query("SELECT * FROM notifications_table ORDER BY timestamp DESC")
     fun getAllNotifications(): List<NotificationModel>
 
-    // All notifications for a specific course (by source = courseName)
     @Query("SELECT * FROM notifications_table WHERE source = :courseName ORDER BY timestamp DESC")
     fun getNotificationsForCourse(courseName: String): List<NotificationModel>
 
-    // Count of notifications per course — used for the badge on subject cards
     @Query("SELECT COUNT(*) FROM notifications_table WHERE source = :courseName")
     fun getCountForCourse(courseName: String): Int
 
-    // Insert a new notification
     @Insert
     fun insertNotification(notification: NotificationModel)
+
+    @Query("DELETE FROM notifications_table WHERE source = :courseName")
+    fun deleteNotificationsForCourse(courseName: String)
+
+    @Query("UPDATE notifications_table SET source = :newName WHERE source = :oldName")
+    fun updateCourseNameInNotifications(oldName: String, newName: String)
 }

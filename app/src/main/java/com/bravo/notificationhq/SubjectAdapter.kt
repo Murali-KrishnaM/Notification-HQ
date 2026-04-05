@@ -8,21 +8,20 @@ import androidx.recyclerview.widget.RecyclerView
 
 class SubjectAdapter(
     private val courses: List<CourseModel>,
-    // Pass a map of courseId -> notification count from MainActivity
     private val notifCounts: Map<String, Int> = emptyMap(),
-    private val onItemClick: (CourseModel) -> Unit
+    private val onItemClick: (CourseModel) -> Unit,
+    private val onItemLongClick: (CourseModel) -> Unit  // NEW
 ) : RecyclerView.Adapter<SubjectAdapter.ViewHolder>() {
 
-    // Palette of colors for the symbol pill — cycles through courses
     private val symbolColors = listOf(
-        "#4CAF50", // green  (brand)
-        "#1A73E8", // blue
-        "#F57F17", // amber
-        "#7B1FA2", // purple
-        "#00838F", // teal
-        "#D32F2F", // red
-        "#2E7D32", // dark green
-        "#0277BD"  // dark blue
+        "#4CAF50",
+        "#1A73E8",
+        "#F57F17",
+        "#7B1FA2",
+        "#00838F",
+        "#D32F2F",
+        "#2E7D32",
+        "#0277BD"
     )
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -42,17 +41,13 @@ class SubjectAdapter(
         val course = courses[position]
 
         // ── Symbol pill ────────────────────────────────────────
-        // Use courseSymbol if available, else first 2-3 chars of name
         val symbol = when {
-            !course.courseSymbol.isNullOrBlank() ->
-                course.courseSymbol.take(4)
-            !course.courseName.isNullOrBlank() ->
-                course.courseName.take(3).uppercase()
+            !course.courseSymbol.isNullOrBlank() -> course.courseSymbol.take(4)
+            !course.courseName.isNullOrBlank()   -> course.courseName.take(3).uppercase()
             else -> "?"
         }
         holder.tvSymbol.text = symbol
 
-        // Assign a consistent color based on position in list
         val colorHex = symbolColors[position % symbolColors.size]
         holder.tvSymbol.background.setTint(
             android.graphics.Color.parseColor(colorHex)
@@ -69,7 +64,7 @@ class SubjectAdapter(
         holder.tvCourseId.text = idText
 
         // ── Notification count badge ───────────────────────────
-        val count = notifCounts[course.courseId] ?: 0
+        val count = notifCounts[course.courseName] ?: 0
         if (count > 0) {
             holder.tvBadge.visibility = View.VISIBLE
             holder.tvBadge.text = if (count > 99) "99+" else count.toString()
@@ -77,8 +72,12 @@ class SubjectAdapter(
             holder.tvBadge.visibility = View.GONE
         }
 
-        // ── Click ──────────────────────────────────────────────
+        // ── Click & Long-press ─────────────────────────────────
         holder.itemView.setOnClickListener { onItemClick(course) }
+        holder.itemView.setOnLongClickListener {
+            onItemLongClick(course)
+            true  // consume the event
+        }
     }
 
     override fun getItemCount() = courses.size
