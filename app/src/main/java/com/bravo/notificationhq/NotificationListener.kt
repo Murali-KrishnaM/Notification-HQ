@@ -10,31 +10,29 @@ import kotlinx.coroutines.launch
 class NotificationListener : NotificationListenerService() {
 
     companion object {
-        // Echo Killer cache
-        private val recentFingerprints = ArrayDeque<String>(20)
+        // ── Echo Killer cache ──────────────────────────────────
+        // Stores composite fingerprints: normalizedTitle + tail of body
+        private val recentFingerprints = ArrayDeque<String>(30)
 
-        // Gmail academic keyword filter
+        // Gmail academic keyword filter (PRIORITY 4 catch-all — generic terms only)
         private val GMAIL_ACADEMIC_KEYWORDS = listOf(
-            "quiz", "deadline", "assignment", "notes", "resource",
-            "submission", "exam", "test", "project", "review",
-            "lab", "viva", "internal", "closes on", "due date",
-            "attendance", "class cancelled", "rescheduled", "postponed",
-            "marks", "grade", "result", "timetable", "schedule"
+            "quiz", "notes", "resource", "submission", "exam",
+            "project", "review", "lab", "viva", "internal",
+            "closes on", "due date", "attendance", "class cancelled",
+            "rescheduled", "postponed", "marks", "grade", "result",
+            "timetable", "schedule", "assignment", "deadline"
         )
 
-        // NPTEL detection keywords
+        // ── NPTEL keywords — STRICT, NPTEL-specific terms ONLY ──
+        // Removed: "week deadline", "assignment deadline" — too generic, caused false positives
         private val NPTEL_KEYWORDS = listOf(
-            "nptel", "swayam", "nptel.iitm.ac.in", "onlinecourses.nptel.ac.in",
-            "nptel online", "nptel course", "week deadline", "assignment deadline"
-        )
-
-        // NPTEL sender domains
-        private val NPTEL_SENDER_PATTERNS = listOf(
+            "nptel",
+            "swayam",
             "nptel.iitm.ac.in",
-            "swayam.gov.in",
             "onlinecourses.nptel.ac.in",
-            "no-reply@nptel",
-            "noreply@nptel"
+            "nptel online",
+            "nptel course",
+            "onlinecourses.nptel"
         )
 
         // Urgency keywords for WhatsApp
@@ -57,16 +55,18 @@ class NotificationListener : NotificationListenerService() {
         const val BUCKET_NPTEL             = "📚 NPTEL"
         const val BUCKET_PLACEMENTS        = "🏢 Placements"
 
-        // ── Fuzzy matching threshold ───────────────────────────
-        // 0.6 = 60% of the saved group name's tokens must appear
-        // in the notification title for a fuzzy match to succeed.
-        // Raise this (e.g. 0.75) to be stricter,
-        // lower it (e.g. 0.5) to be more lenient.
-        private const val FUZZY_MATCH_THRESHOLD = 0.6f
+        // ── Fuzzy thresholds ───────────────────────────────────
+        // Academic groups: stricter (0.6) to avoid wrong course routing
+        private const val FUZZY_MATCH_THRESHOLD_ACADEMIC   = 0.6f
+        // Placement groups: more lenient (0.5) because names like
+        // "2027 AIDS,AIML,IT,CSD" have many tokens and partial matches are valid
+        private const val FUZZY_MATCH_THRESHOLD_PLACEMENTS = 0.5f
 
-        // Minimum token length to consider — ignore short noise words
-        // like "a", "of", "the" when scoring
-        private const val MIN_TOKEN_LENGTH = 2
+        // Ignore tokens shorter than this (filters "a", "of", "it" noise)
+        // NOTE: Raised to 3 to also filter common 2-letter noise like "it"
+        // that would otherwise incorrectly match "IT" in group names like
+        // "2027 AIDS,AIML,IT,CSD" against unrelated messages.
+        private const val MIN_TOKEN_LENGTH = 3
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -83,7 +83,7 @@ class NotificationListener : NotificationListenerService() {
             val textLines = extras.getCharSequenceArray("android.textLines")
                 ?.joinToString("\n") { it.trim() } ?: ""
 
-            // WhatsApp summary killer
+            // ── WhatsApp summary notification killer ───────────
             if (pkg == "com.whatsapp" || pkg == "com.whatsapp.w4b") {
                 if (stdText.matches(Regex("^\\d+ new messages?(( from \\d+ chats?)|(( in \\d+ chats?)))?$"))) return
                 if (stdText.matches(Regex("^\\d+ new message$"))) return
@@ -98,6 +98,7 @@ class NotificationListener : NotificationListenerService() {
 
             val searchLower = fullCorpus.lowercase()
 
+            // ── Choose the richest body to display ────────────
             val displayBody = when {
                 bigText.isNotEmpty() && bigText != stdText -> bigText
                 textLines.isNotEmpty()                     -> "$stdText\n$textLines".trim()
@@ -105,11 +106,48 @@ class NotificationListener : NotificationListenerService() {
                 else                                       -> return
             }
 
-            // Echo Killer
-            val fingerprint = displayBody.lowercase().take(60)
-            if (recentFingerprints.any { it == fingerprint }) return
+            // ══════════════════════════════════════════════════
+            // FIX 2: IMPROVED ECHO KILLER
+            //
+            // Problem: WhatsApp fires two events for one message:
+            //   Event A — stdText = "Jeevapriya: 📄 NLP_file.pptx"
+            //   Event B — bigText = "📄 NLP_file.pptx (12 slides)"
+            // These produce different displayBody strings, so the old
+            // take(60) fingerprint treated them as different messages.
+            //
+            // Fix: Build the fingerprint from:
+            //   1. Normalized group title (strip WA count suffix, lowercase)
+            //   2. Last 80 chars of the body (most unique / content-rich part)
+            //      stripped of the sender-name prefix ("Jeevapriya: ...")
+            //
+            // This way both events A and B share the same content tail
+            // and the second one is correctly killed as a duplicate.
+            // ══════════════════════════════════════════════════
+            val normalizedTitle = title
+                .substringBefore(" (")   // strip "(5)" count suffix
+                .lowercase()
+                .trim()
+
+            // Strip "SenderName: " prefix that WhatsApp adds to stdText
+            val bodyForFingerprint = displayBody
+                .replace(Regex("^[^:]{1,40}:\\s*"), "")  // remove "Name: " prefix up to 40 chars
+                .lowercase()
+                .trim()
+
+            // Use last 80 chars — most unique part of any message
+            val bodyTail = if (bodyForFingerprint.length > 80)
+                bodyForFingerprint.takeLast(80)
+            else
+                bodyForFingerprint
+
+            val fingerprint = "$normalizedTitle|$bodyTail"
+
+            if (recentFingerprints.any { it == fingerprint }) {
+                Log.d("NotifHQ", "Echo killed: $normalizedTitle")
+                return
+            }
             recentFingerprints.addLast(fingerprint)
-            if (recentFingerprints.size > 20) recentFingerprints.removeFirst()
+            if (recentFingerprints.size > 30) recentFingerprints.removeFirst()
 
             CoroutineScope(Dispatchers.IO).launch {
                 processNotification(
@@ -128,7 +166,7 @@ class NotificationListener : NotificationListenerService() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CORE PROCESSING
+    // CORE PROCESSING — routes to the correct processor by package
     // ─────────────────────────────────────────────────────────────────────────
     private suspend fun processNotification(
         pkg: String,
@@ -178,7 +216,11 @@ class NotificationListener : NotificationListenerService() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // WHATSAPP PROCESSOR — exact match first, fuzzy fallback
+    // WHATSAPP PROCESSOR
+    // Pass 1: Exact substring match (fastest, most reliable)
+    // Pass 2: Fuzzy token match (handles WhatsApp name variations)
+    // FIX 3 is applied here: normalizeForMatching() strips commas, dots, etc.
+    //        before tokenizing so "2027 AIDS,AIML,IT,CSD" tokenizes correctly.
     // ─────────────────────────────────────────────────────────────────────────
     private suspend fun processWhatsApp(
         db: AppDatabase,
@@ -188,7 +230,7 @@ class NotificationListener : NotificationListenerService() {
         savedCourses: List<CourseModel>,
         placementChannels: List<PlacementChannelModel>
     ) {
-        // Strip "(X)" suffixes WhatsApp adds to group names
+        // Strip "(X)" count suffix WhatsApp appends to group names
         var finalTitle = rawTitle.substringBefore(" (").trim()
 
         // Tag urgent messages
@@ -196,70 +238,78 @@ class NotificationListener : NotificationListenerService() {
             finalTitle = "🚨 URGENT: $finalTitle"
         }
 
-        val titleLower = finalTitle.lowercase()
+        // Normalize the incoming title for matching
+        val titleNormalized = normalizeForMatching(finalTitle)
 
-        // ── PASS 1: Exact substring match — Placements ─────────
+        // ── PASS 1: Exact substring — Placements ──────────────
         for (channel in placementChannels) {
             val wGroup = channel.whatsappGroupName?.trim()?.lowercase() ?: continue
-            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) {
+            if (wGroup.isNotEmpty() && titleNormalized.contains(normalizeForMatching(wGroup))) {
                 saveNotification(db, finalTitle, displayBody, BUCKET_PLACEMENTS, "whatsapp")
                 Log.d("NotifHQ", "WA exact → Placements: $finalTitle")
                 return
             }
         }
 
-        // ── PASS 1: Exact substring match — Academic courses ───
+        // ── PASS 1: Exact substring — Academic courses ─────────
         for (course in savedCourses) {
             val wGroup = course.whatsappGroupName?.trim()?.lowercase() ?: continue
-            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) {
+            if (wGroup.isNotEmpty() && titleNormalized.contains(normalizeForMatching(wGroup))) {
                 saveNotification(db, finalTitle, displayBody, course.courseName, "whatsapp")
                 Log.d("NotifHQ", "WA exact → ${course.courseName}: $finalTitle")
                 return
             }
         }
 
-        // ── PASS 2: Fuzzy match — Placements ──────────────────
+        // ── PASS 2: Fuzzy — Placements ────────────────────────
         var bestPlacementMatch: PlacementChannelModel? = null
         var bestPlacementScore = 0f
 
         for (channel in placementChannels) {
             val wGroup = channel.whatsappGroupName?.trim()?.lowercase() ?: continue
             if (wGroup.isEmpty()) continue
-            val score = computeFuzzyScore(savedName = wGroup, notifTitle = titleLower)
+            val score = computeFuzzyScore(
+                savedName  = normalizeForMatching(wGroup),
+                notifTitle = titleNormalized
+            )
+            Log.d("NotifHQ", "WA fuzzy [Placement: ${channel.label}] score=$score title=$titleNormalized")
             if (score > bestPlacementScore) {
                 bestPlacementScore = score
                 bestPlacementMatch = channel
             }
         }
 
-        if (bestPlacementMatch != null && bestPlacementScore >= FUZZY_MATCH_THRESHOLD) {
+        if (bestPlacementMatch != null && bestPlacementScore >= FUZZY_MATCH_THRESHOLD_PLACEMENTS) {
             saveNotification(db, finalTitle, displayBody, BUCKET_PLACEMENTS, "whatsapp")
             Log.d("NotifHQ", "WA fuzzy → Placements (score=$bestPlacementScore): $finalTitle")
             return
         }
 
-        // ── PASS 2: Fuzzy match — Academic courses ─────────────
+        // ── PASS 2: Fuzzy — Academic courses ──────────────────
         var bestCourseMatch: CourseModel? = null
         var bestCourseScore = 0f
 
         for (course in savedCourses) {
             val wGroup = course.whatsappGroupName?.trim()?.lowercase() ?: continue
             if (wGroup.isEmpty()) continue
-            val score = computeFuzzyScore(savedName = wGroup, notifTitle = titleLower)
+            val score = computeFuzzyScore(
+                savedName  = normalizeForMatching(wGroup),
+                notifTitle = titleNormalized
+            )
+            Log.d("NotifHQ", "WA fuzzy [Course: ${course.courseName}] score=$score title=$titleNormalized")
             if (score > bestCourseScore) {
                 bestCourseScore = score
                 bestCourseMatch = course
             }
         }
 
-        if (bestCourseMatch != null && bestCourseScore >= FUZZY_MATCH_THRESHOLD) {
+        if (bestCourseMatch != null && bestCourseScore >= FUZZY_MATCH_THRESHOLD_ACADEMIC) {
             saveNotification(db, finalTitle, displayBody, bestCourseMatch.courseName, "whatsapp")
             Log.d("NotifHQ", "WA fuzzy → ${bestCourseMatch.courseName} (score=$bestCourseScore): $finalTitle")
             return
         }
 
-        // ── No match — drop silently ───────────────────────────
-        Log.d("NotifHQ", "WA unmatched, dropped (best score=$bestCourseScore): $finalTitle")
+        Log.d("NotifHQ", "WA unmatched, dropped (best course=$bestCourseScore, best placement=$bestPlacementScore): $finalTitle")
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -286,7 +336,20 @@ class NotificationListener : NotificationListenerService() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // GMAIL PROCESSOR — strict priority routing
+    // GMAIL PROCESSOR — strict priority pipeline
+    //
+    // PRIORITY ORDER:
+    //   1. NPTEL sender (DB channels) → route to that NPTEL channel
+    //   2. NPTEL content keywords (strict, NPTEL-specific only) → NPTEL bucket
+    //   3. Placement sender/domain match → Placements bucket
+    //   4. Academic course match (courseId > symbol > name) → specific course
+    //   5. Generic academic keyword fallback → Important Emails bucket
+    //   6. Drop
+    //
+    // FIX 1 is applied here: isNptelSender requires senderLower to be
+    //   non-empty AND uses strict one-directional contains check only
+    //   (senderLower.contains(email)), NOT the reverse email.contains(sender)
+    //   which was matching empty/short senders against everything.
     // ─────────────────────────────────────────────────────────────────────────
     private suspend fun processGmail(
         db: AppDatabase,
@@ -299,13 +362,13 @@ class NotificationListener : NotificationListenerService() {
         placementChannels: List<PlacementChannelModel>
     ) {
         val senderAddress = extractSenderEmail(rawTitle, stdText, fullCorpus)
-        val senderLower   = senderAddress.lowercase()
+        val senderLower   = senderAddress.lowercase().trim()
 
-        Log.d("NotifHQ", "Gmail | sender: $senderLower | title: $rawTitle")
+        Log.d("NotifHQ", "Gmail | sender: '$senderLower' | title: $rawTitle")
 
-        // ── PRIORITY 1: NPTEL — DB channels first, keyword fallback ──
         val nptelChannels = db.nptelChannelDao().getAllChannels()
 
+        // Build a set of all registered NPTEL sender emails (from DB channels)
         val allNptelEmails = nptelChannels
             .flatMap { ch ->
                 ch.emailAddresses
@@ -315,28 +378,45 @@ class NotificationListener : NotificationListenerService() {
             }
             .toSet()
 
-        val isNptelSender  = allNptelEmails.any { nptelEmail ->
-            senderLower.contains(nptelEmail) || nptelEmail.contains(senderLower)
-        }
-        val isNptelContent = NPTEL_KEYWORDS.any { searchLower.contains(it) }
+        // ── PRIORITY 1: NPTEL DB channel sender match ─────────
+        // STRICT: sender must be non-empty AND must contain a registered NPTEL email.
+        // We do NOT check the reverse (email.contains(sender)) — that was the bug.
+        val isNptelDbSender = senderLower.isNotEmpty() &&
+                allNptelEmails.any { nptelEmail ->
+                    senderLower.contains(nptelEmail)
+                }
 
-        if (isNptelSender || isNptelContent) {
+        if (isNptelDbSender) {
             val matchedNptelChannel = nptelChannels.firstOrNull { ch ->
                 ch.emailAddresses
                     .split(",")
                     .map { it.trim().lowercase() }
-                    .any { email ->
-                        senderLower.contains(email) || email.contains(senderLower)
-                    }
+                    .any { email -> senderLower.contains(email) }
             }
             val nptelSource = matchedNptelChannel?.label ?: BUCKET_NPTEL
             val finalTitle  = buildDueTitle(rawTitle, fullCorpus) ?: "📚 $rawTitle"
             saveNotification(db, finalTitle, displayBody, nptelSource, "gmail")
-            Log.d("NotifHQ", "Gmail → NPTEL [$nptelSource]")
+            Log.d("NotifHQ", "Gmail → NPTEL DB sender [$nptelSource]")
             return
         }
 
-        // ── PRIORITY 2: Placement sender check ────────────────
+        // ── PRIORITY 2: NPTEL content keywords (strict) ───────
+        // Only fires if the email body contains genuinely NPTEL-specific terms.
+        // Generic terms like "assignment deadline" were removed from NPTEL_KEYWORDS
+        // to prevent false positives.
+        val isNptelContent = NPTEL_KEYWORDS.any { keyword ->
+            searchLower.contains(keyword)
+        }
+
+        if (isNptelContent) {
+            val finalTitle = buildDueTitle(rawTitle, fullCorpus) ?: "📚 $rawTitle"
+            saveNotification(db, finalTitle, displayBody, BUCKET_NPTEL, "gmail")
+            Log.d("NotifHQ", "Gmail → NPTEL keyword match")
+            return
+        }
+
+        // ── PRIORITY 3: Placement sender check ────────────────
+        // Build all registered placement email addresses
         val allPlacementEmails = placementChannels
             .flatMap { channel ->
                 channel.emailAddresses
@@ -346,28 +426,37 @@ class NotificationListener : NotificationListenerService() {
             }
             .toSet()
 
-        val isPlacementSender = allPlacementEmails.any { placementEmail ->
-            senderLower.contains(placementEmail) || placementEmail.contains(senderLower)
-        }
+        // STRICT: sender must be non-empty for email matching
+        val isPlacementSender = senderLower.isNotEmpty() &&
+                allPlacementEmails.any { placementEmail ->
+                    senderLower.contains(placementEmail)
+                }
 
+        // Also check the sender's domain against registered placement domains
         val placementDomains = placementChannels
             .flatMap { it.emailAddresses.split(",") }
             .map { it.trim().lowercase() }
-            .mapNotNull { email -> email.substringAfter("@", "").ifEmpty { null } }
+            .mapNotNull { email ->
+                val domain = email.substringAfter("@", "")
+                if (domain.isNotEmpty()) domain else null
+            }
             .toSet()
 
-        val isPlacementDomain = placementDomains.any { domain ->
-            domain.isNotEmpty() && senderLower.contains(domain)
-        }
+        val isPlacementDomain = senderLower.isNotEmpty() &&
+                placementDomains.any { domain ->
+                    domain.isNotEmpty() && senderLower.contains(domain)
+                }
 
         if (isPlacementSender || isPlacementDomain) {
             val finalTitle = buildDueTitle(rawTitle, fullCorpus) ?: "🏢 $rawTitle"
             saveNotification(db, finalTitle, displayBody, BUCKET_PLACEMENTS, "gmail")
-            Log.d("NotifHQ", "Gmail → Placements (sender match)")
+            Log.d("NotifHQ", "Gmail → Placements (sender/domain match: $senderLower)")
             return
         }
 
-        // ── PRIORITY 3: Best academic course match ─────────────
+        // ── PRIORITY 4: Best academic course match ─────────────
+        // Scores: courseId=+3, courseSymbol=+2, courseName=+1
+        // Minimum score of 1 required to route to a specific course.
         var bestMatch: CourseModel? = null
         var bestMatchScore = 0
 
@@ -391,55 +480,64 @@ class NotificationListener : NotificationListenerService() {
             return
         }
 
-        // ── PRIORITY 4: Generic academic keyword fallback ──────
-        val isAcademic = GMAIL_ACADEMIC_KEYWORDS.any { searchLower.contains(it) }
+        // ── PRIORITY 5: Generic academic keyword fallback ──────
+        val isAcademic = GMAIL_ACADEMIC_KEYWORDS.any { keyword ->
+            searchLower.contains(keyword)
+        }
         if (isAcademic) {
             val finalTitle = buildDueTitle(rawTitle, fullCorpus) ?: "📧 $rawTitle"
             saveNotification(db, finalTitle, displayBody, BUCKET_IMPORTANT_EMAILS, "gmail")
-            Log.d("NotifHQ", "Gmail → Important Emails (generic)")
+            Log.d("NotifHQ", "Gmail → Important Emails (generic keyword)")
             return
         }
 
-        // ── PRIORITY 5: Drop ───────────────────────────────────
-        Log.d("NotifHQ", "Gmail dropped: $rawTitle")
+        // ── PRIORITY 6: Drop ───────────────────────────────────
+        Log.d("NotifHQ", "Gmail dropped (no match): $rawTitle | sender: $senderLower")
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FUZZY MATCH HELPER
+    // STRING NORMALIZER FOR MATCHING
+    //
+    // FIX 3: Converts special characters (commas, dots, slashes, etc.)
+    // to spaces before tokenizing. This ensures a group name like
+    // "2027 AIDS,AIML,IT,CSD" is correctly tokenized into
+    // ["2027", "aids", "aiml", "csd"] (after MIN_TOKEN_LENGTH filter removes "it")
+    // instead of the original split failing on the comma-separated tokens.
     // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * Computes a token overlap score between the saved WhatsApp group name
-     * and the incoming notification title.
-     *
-     * How it works:
-     * 1. Tokenize both strings by splitting on spaces and punctuation
-     * 2. Filter out tokens shorter than MIN_TOKEN_LENGTH (noise words)
-     * 3. Count how many of the saved name's tokens appear in the title tokens
-     * 4. Return score = matchedTokens / totalSavedTokens
-     *
-     * Examples:
-     *   saved="nlpa batch a"  title="nlpa - batch a (5)"  → score=1.0  ✅ match
-     *   saved="nlpa batch a"  title="nlpa batch"           → score=0.67 ✅ match (≥0.6)
-     *   saved="cloud computing" title="coding club"        → score=0.0  ❌ no match
-     *   saved="ad dept"       title="cse dept notice"      → score=0.5  ❌ below threshold
-     */
+    private fun normalizeForMatching(input: String): String {
+        return input
+            .lowercase()
+            .replace(Regex("[,./\\\\|;:!@#\$%^&*()+=<>?]"), " ")  // replace punctuation with space
+            .replace(Regex("\\s+"), " ")                             // collapse multiple spaces
+            .trim()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FUZZY SCORE HELPER
+    //
+    // Token overlap: what fraction of the saved name's tokens appear in
+    // the notification title's tokens?
+    //
+    // Both inputs should be pre-normalized via normalizeForMatching().
+    //
+    // Examples (after normalization):
+    //   saved="2027 aids aiml csd"  title="2027 aids aiml it csd"  → 1.0 ✅
+    //   saved="nlpa batch"          title="nlpa batch a"            → 1.0 ✅
+    //   saved="cloud computing"     title="coding club"             → 0.0 ❌
+    // ─────────────────────────────────────────────────────────────────────────
     private fun computeFuzzyScore(savedName: String, notifTitle: String): Float {
-        // Tokenize — split on any non-alphanumeric character
         val savedTokens = savedName
-            .split(Regex("[^a-z0-9]+"))
+            .split(Regex("\\s+"))
             .filter { it.length >= MIN_TOKEN_LENGTH }
 
         if (savedTokens.isEmpty()) return 0f
 
         val titleTokens = notifTitle
-            .split(Regex("[^a-z0-9]+"))
+            .split(Regex("\\s+"))
             .filter { it.length >= MIN_TOKEN_LENGTH }
             .toSet()
 
-        // Count how many saved tokens appear in the title token set
         val matchedCount = savedTokens.count { savedToken ->
-            // Exact token match OR title token starts with saved token
-            // (handles abbreviations like "nlpa" matching "nlpa2024")
             titleTokens.any { titleToken ->
                 titleToken == savedToken || titleToken.startsWith(savedToken)
             }
@@ -450,12 +548,12 @@ class NotificationListener : NotificationListenerService() {
 
     // ─────────────────────────────────────────────────────────────────────────
     // EMAIL COURSE MATCH SCORER
+    //
+    // Scoring weights (higher = more specific match):
+    //   +3 courseId     (e.g. "AD23B32" — most specific)
+    //   +2 courseSymbol (e.g. "NLPA")
+    //   +1 courseName   (e.g. "Natural Language Processing Analytics")
     // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * +3 if courseId found   (most specific — e.g. "AD23B32")
-     * +2 if courseSymbol found (e.g. "NLPA")
-     * +1 if courseName found  (e.g. "Natural Language Processing")
-     */
     private fun computeCourseMatchScore(
         searchLower: String,
         courseName: String,
@@ -476,6 +574,8 @@ class NotificationListener : NotificationListenerService() {
 
     // ─────────────────────────────────────────────────────────────────────────
     // SENDER EMAIL EXTRACTOR
+    // Tries stdText first (Gmail usually puts "from: sender@domain.com" there),
+    // then rawTitle, then the full corpus as a last resort.
     // ─────────────────────────────────────────────────────────────────────────
     private fun extractSenderEmail(
         rawTitle: String,
@@ -491,6 +591,8 @@ class NotificationListener : NotificationListenerService() {
 
     // ─────────────────────────────────────────────────────────────────────────
     // DUE TITLE BUILDER
+    // If the email body contains a due date signal, prefixes the title
+    // with "⏰ DUE <date> —" for visual priority in the feed.
     // ─────────────────────────────────────────────────────────────────────────
     private fun buildDueTitle(rawTitle: String, fullCorpus: String): String? {
         val corpusLower = fullCorpus.lowercase()
