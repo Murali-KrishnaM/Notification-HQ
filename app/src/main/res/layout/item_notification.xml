@@ -1,102 +1,154 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     item_notification.xml
-    Each notification row card. Accent bar color set by NotificationAdapter.
+    Each notification row card.
+    Sprint 2B: Added status pill row at the bottom + long-press affordance.
+    Accent bar color and status pill color are both set by NotificationAdapter.
 -->
 <androidx.cardview.widget.CardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/cardNotification"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginStart="14dp"
-    android:layout_marginEnd="14dp"
-    android:layout_marginTop="6dp"
-    android:layout_marginBottom="6dp"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp"
-    app:cardBackgroundColor="@color/card_bg">
-
-    <!-- Left accent bar — color set dynamically -->
-    <View
-        android:id="@+id/viewAccentBar"
-        android:layout_width="3dp"
-        android:layout_height="match_parent"
-        android:background="@color/accent_green" />
-
-    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/cardNotification"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="20dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp">
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:longClickable="true"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@color/card_bg">
+
+    <!-- Left accent bar — color set dynamically by adapter -->
+    <View
+            android:id="@+id/viewAccentBar"
+            android:layout_width="3dp"
+            android:layout_height="match_parent"
+            android:background="@color/accent_green" />
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="12dp">
 
         <!-- Row 1: source chip + priority chip -->
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="10dp">
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
 
             <TextView
-                android:id="@+id/tvSource"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="WhatsApp"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.06"
-                android:textColor="@color/text_primary"
-                android:background="@drawable/chip_source_dark"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp" />
+                    android:id="@+id/tvSource"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="WhatsApp"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.06"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/chip_source_dark"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp" />
 
             <TextView
-                android:id="@+id/tvPriorityChip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="🚨 URGENT"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.06"
-                android:textColor="#FFFFFF"
-                android:background="@drawable/chip_urgent_dark"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp"
-                android:visibility="gone" />
+                    android:id="@+id/tvPriorityChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="🚨 URGENT"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.06"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/chip_urgent_dark"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:visibility="gone" />
 
         </LinearLayout>
 
         <!-- Row 2: title -->
         <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Group Name"
-            android:fontFamily="@font/display_font"
-            android:textSize="15sp"
-            android:textColor="@color/text_primary"
-            android:layout_marginBottom="6dp" />
+                android:id="@+id/tvTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Group Name"
+                android:fontFamily="@font/display_font"
+                android:textSize="15sp"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="6dp" />
 
         <!-- Row 3: message body -->
         <TextView
-            android:id="@+id/tvMessage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Message content goes here..."
-            android:textSize="13sp"
-            android:textColor="@color/text_secondary"
-            android:lineSpacingMultiplier="1.4"
-            android:maxLines="4"
-            android:ellipsize="end" />
+                android:id="@+id/tvMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Message content goes here..."
+                android:textSize="13sp"
+                android:textColor="@color/text_secondary"
+                android:lineSpacingMultiplier="1.4"
+                android:maxLines="4"
+                android:ellipsize="end" />
+
+        <!-- Divider before status pill -->
+        <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/divider_color"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="10dp" />
+
+        <!-- Row 4: status pill (Task Confidence Tracker — Sprint 2B) -->
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+            <TextView
+                    android:id="@+id/tvStatusPill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⬜ NOT STARTED"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.08"
+                    android:textColor="@color/text_muted"
+                    android:background="@drawable/status_pill_bg"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp" />
+
+            <!-- Push hint to right -->
+            <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+            <!-- Long-press hint -->
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="hold to manage"
+                    android:textSize="10sp"
+                    android:textColor="@color/text_hint"
+                    android:fontFamily="@font/mono_font" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

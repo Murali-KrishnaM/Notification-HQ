@@ -10,9 +10,10 @@ import androidx.room.RoomDatabase
         NotificationModel::class,
         CourseModel::class,
         PlacementChannelModel::class,
-        NptelChannelModel::class        // NEW
+        NptelChannelModel::class,
+        TaskStatusModel::class          // NEW — Sprint 2B
     ],
-    version = 5,                        // BUMPED from 4
+    version = 6,                        // BUMPED from 5
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,7 +21,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
     abstract fun courseDao(): CourseDao
     abstract fun placementChannelDao(): PlacementChannelDao
-    abstract fun nptelChannelDao(): NptelChannelDao             // NEW
+    abstract fun nptelChannelDao(): NptelChannelDao
+    abstract fun taskStatusDao(): TaskStatusDao              // NEW — Sprint 2B
 
     companion object {
         @Volatile

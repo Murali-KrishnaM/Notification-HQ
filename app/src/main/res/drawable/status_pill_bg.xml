@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    status_pill_bg.xml
+    Background for the Task Confidence status pill on each notification card.
+    Base fill is kept dark/transparent — the actual accent color is applied
+    dynamically in NotificationAdapter via backgroundTintList so a single
+    drawable serves all three status states.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Dark translucent fill — tinted at runtime by adapter -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1A000000" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+
+    <!-- Subtle border — also tinted at runtime -->
+    <item>
+        <shape android:shape="rectangle">
+            <stroke android:width="1dp" android:color="#40FFFFFF" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+
+</layer-list>
