@@ -8,27 +8,31 @@ import android.service.notification.StatusBarNotification
  * ══════════════════════════════════════════════════════════════════════════
  *
  * Responsibility:
- *   - Accept ONLY notifications from the three allowed packages.
+ *   - Accept ONLY notifications from the two allowed packages.
  *   - Reject WhatsApp "summary" spam (e.g., "12 new messages from 3 chats").
  *   - Extract the raw strings (title, stdText, bigText, textLines) from the
- *     notification bundle and assemble them into a [CapturedNotification].
- *   - Return null if the notification should be dropped at this stage.
+ *     notification bundle and pack them into a [CapturedNotification].
+ *   - Return null if the notification should be dropped at this early stage.
  *
- * This module has NO routing logic. It only decides: "Is this worth passing
- * down the pipeline?" and then packages the raw data cleanly.
+ * NOTE: Google Classroom (com.google.android.apps.classroom) is intentionally
+ * NOT in the allowed list. Classroom posts assignment/attendance updates via
+ * Gmail (com.google.android.gm). We capture those through Gmail so we get
+ * the full email body, not just the thin Classroom push snippet.
+ *
+ * This module has ZERO routing logic.
  */
 object NotificationCapture {
 
     // ── Allowed source packages ────────────────────────────────────────────
+    // Only WhatsApp and Gmail. Classroom emails arrive via Gmail.
     private val ALLOWED_PACKAGES = setOf(
         "com.whatsapp",
         "com.whatsapp.w4b",
-        "com.google.android.gm",
-        "com.google.android.apps.classroom"
+        "com.google.android.gm"
     )
 
-    // ── WhatsApp summary noise pattern ────────────────────────────────────
-    // e.g. "12 new messages from 3 chats" or "1 new message"
+    // ── WhatsApp summary noise patterns ───────────────────────────────────
+    // Drops bundle-level summaries like "12 new messages from 3 chats"
     private val WA_SUMMARY_REGEX =
         Regex("^\\d+ new messages?(( from \\d+ chats?)|(( in \\d+ chats?)))?$")
     private val WA_SINGLE_SUMMARY_REGEX =
@@ -50,8 +54,8 @@ object NotificationCapture {
         // Gate 2: Must have a title
         val rawTitle = extras.getString("android.title")?.trim() ?: return null
 
-        // Extract all text variants
-        val stdText   = extras.getCharSequence("android.text")?.toString()?.trim() ?: ""
+        // Extract all text variants from the notification bundle
+        val stdText   = extras.getCharSequence("android.text")?.toString()?.trim()  ?: ""
         val bigText   = extras.getCharSequence("android.bigText")?.toString()?.trim() ?: ""
         val textLines = extras.getCharSequenceArray("android.textLines")
             ?.joinToString("\n") { it.trim() } ?: ""
@@ -62,7 +66,7 @@ object NotificationCapture {
             if (stdText.matches(WA_SINGLE_SUMMARY_REGEX)) return null
         }
 
-        // Gate 4: Must have some body text to be useful
+        // Gate 4: Must have some body text to be meaningful
         val hasBody = stdText.isNotEmpty() || bigText.isNotEmpty() || textLines.isNotEmpty()
         if (!hasBody) return null
 
