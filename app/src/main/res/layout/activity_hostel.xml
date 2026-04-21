@@ -9,7 +9,7 @@
     <View
             android:layout_width="0dp"
             android:layout_height="2dp"
-            android:background="@drawable/glow_line_blue"
+            android:background="@drawable/glow_line_violet"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
@@ -19,7 +19,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@drawable/header_glass_blue_bg"
+            android:background="@drawable/header_glass_violet_bg"
             android:paddingStart="24dp"
             android:paddingEnd="24dp"
             android:paddingTop="52dp"
@@ -31,8 +31,8 @@
         <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="CAREER PORTAL"
-                android:textColor="@color/accent_blue"
+                android:text="RESIDENTIAL"
+                android:textColor="@color/accent_violet"
                 android:textSize="10sp"
                 android:letterSpacing="0.25"
                 android:fontFamily="@font/mono_font"
@@ -41,7 +41,7 @@
         <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Placements"
+                android:text="Hostel"
                 android:textColor="@color/text_primary"
                 android:textSize="30sp"
                 android:fontFamily="@font/display_font"
@@ -50,7 +50,7 @@
         <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Your connected placement channels"
+                android:text="Your connected hostel channels"
                 android:textColor="@color/text_muted"
                 android:textSize="13sp"
                 android:layout_marginTop="2dp" />
@@ -74,7 +74,7 @@
             app:layout_constraintEnd_toEndOf="parent">
 
         <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewChannels"
+                android:id="@+id/recyclerViewHostelChannels"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
@@ -82,7 +82,7 @@
                 android:paddingBottom="20dp" />
 
         <LinearLayout
-                android:id="@+id/layoutPlacementEmptyState"
+                android:id="@+id/layoutHostelEmptyState"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
@@ -93,13 +93,13 @@
                     android:layout_height="wrap_content"
                     android:text="◈"
                     android:textSize="48sp"
-                    android:textColor="@color/accent_blue"
+                    android:textColor="@color/accent_violet"
                     android:alpha="0.2" />
             <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
-                    android:text="No channels yet"
+                    android:text="No hostel channels yet"
                     android:textSize="20sp"
                     android:fontFamily="@font/display_font"
                     android:textColor="@color/text_muted" />
@@ -107,7 +107,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Tap ＋ to connect a placement channel"
+                    android:text="Tap ＋ to connect a hostel channel"
                     android:textSize="13sp"
                     android:textColor="@color/text_hint"
                     android:gravity="center" />
@@ -115,13 +115,13 @@
     </FrameLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabAddChannel"
+            android:id="@+id/fabAddHostelChannel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_margin="24dp"
-            android:backgroundTint="@color/accent_blue"
+            android:backgroundTint="@color/accent_violet"
             android:src="@android:drawable/ic_input_add"
-            android:contentDescription="Add Channel"
+            android:contentDescription="Add Hostel Channel"
             app:tint="@color/bg_deep"
             app:elevation="12dp"
             app:maxImageSize="28dp"
@@ -135,6 +135,6 @@
             android:layout_height="wrap_content"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

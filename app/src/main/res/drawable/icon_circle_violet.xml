@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- icon_circle_violet.xml — circular icon background for the Add Hostel Channel dialog -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+       android:shape="oval">
+    <solid android:color="#B06BFF" />
+</shape>

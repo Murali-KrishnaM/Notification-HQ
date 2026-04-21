@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="32dp"
+        android:paddingBottom="24dp"
+        android:clipToPadding="false">
+
+    <LinearLayout
+            android:id="@+id/bottomNavBar"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:orientation="horizontal"
+            android:background="@drawable/bottom_nav_bg"
+            android:gravity="center_vertical"
+            android:elevation="8dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+                android:id="@+id/navAcademics"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📚"
+                    android:textSize="20sp" />
+
+            <TextView
+                    android:id="@+id/tvNavAcademicsLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Academics"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/mono_font"
+                    android:textColor="@color/accent_green"
+                    android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <LinearLayout
+                android:id="@+id/navPlacements"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🏢"
+                    android:textSize="20sp" />
+
+            <TextView
+                    android:id="@+id/tvNavPlacementsLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Placements"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/mono_font"
+                    android:textColor="@color/text_muted"
+                    android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+        <LinearLayout
+                android:id="@+id/navHostel"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🏠"
+                    android:textSize="20sp" />
+
+            <TextView
+                    android:id="@+id/tvNavHostelLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Hostel"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/mono_font"
+                    android:textColor="@color/text_muted"
+                    android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <LinearLayout
+                android:id="@+id/navNptel"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎓"
+                    android:textSize="20sp" />
+
+            <TextView
+                    android:id="@+id/tvNavNptelLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="NPTEL"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/mono_font"
+                    android:textColor="@color/text_muted"
+                    android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabHome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/accent_green"
+            android:src="@android:drawable/ic_menu_compass"
+            app:tint="@color/bg_deep"
+            android:elevation="16dp"
+            app:elevation="16dp"
+            app:fabSize="normal"
+            app:maxImageSize="26dp"
+            android:layout_marginBottom="32dp"
+            app:layout_constraintBottom_toBottomOf="@+id/bottomNavBar"
+            app:layout_constraintStart_toStartOf="@+id/bottomNavBar"
+            app:layout_constraintEnd_toEndOf="@+id/bottomNavBar" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

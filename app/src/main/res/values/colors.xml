@@ -9,6 +9,8 @@
     accent_green    → Academics neon          #00E5A0
     accent_blue     → Placements neon         #4D9EFF
     accent_amber    → NPTEL neon              #FFB340
+    accent_red      → Urgent neon             #FF4D6A
+    accent_violet   → Hostel neon             #B06BFF  ← NEW Sprint 2C
     text_primary    → full-white text         #F0F2F8
     text_secondary  → body copy               #A8AEBA
     text_muted      → secondary labels        #6B7280
@@ -26,6 +28,7 @@
     <color name="accent_blue">#4D9EFF</color>
     <color name="accent_amber">#FFB340</color>
     <color name="accent_red">#FF4D6A</color>
+    <color name="accent_violet">#B06BFF</color>
 
     <color name="text_primary">#F0F2F8</color>
     <color name="text_secondary">#A8AEBA</color>
@@ -36,4 +39,5 @@
     <color name="ripple_green">#1A4D3A</color>
     <color name="ripple_blue">#172B4D</color>
     <color name="ripple_amber">#3D2E00</color>
+    <color name="ripple_violet">#2A1A3D</color>
 </resources>

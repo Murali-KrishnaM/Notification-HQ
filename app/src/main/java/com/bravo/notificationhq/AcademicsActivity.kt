@@ -12,33 +12,30 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.tabs.TabLayout
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivity : AppCompatActivity() {
+/**
+ * Displays the list of academic courses and handles add/edit/delete.
+ * This is the course-list logic that previously lived in MainActivity,
+ * now extracted into its own Activity for the bottom-nav architecture.
+ */
+class AcademicsActivity : BaseActivity() {
 
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var tabLayout: TabLayout
+    private lateinit var recyclerView:     RecyclerView
     private lateinit var layoutEmptyState: LinearLayout
-    private lateinit var fab: FloatingActionButton
+    private lateinit var fab:              FloatingActionButton
 
     private var academicCourses = listOf<CourseModel>()
 
-    private val clubCourses = listOf(
-        CourseModel(id = -3, courseName = "Coding Club",      courseSymbol = "CODE", courseId = "CLUB-01"),
-        CourseModel(id = -4, courseName = "Photography Club", courseSymbol = "PHOT", courseId = "CLUB-02")
-    )
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_academics)
 
         recyclerView     = findViewById(R.id.recyclerViewSubjects)
-        tabLayout        = findViewById(R.id.tabLayout)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
         fab              = findViewById(R.id.fabAddCourse)
 
@@ -46,49 +43,21 @@ class MainActivity : AppCompatActivity() {
 
         loadCoursesFromDatabase()
 
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                when (tab?.position) {
-                    0 -> {
-                        fab.show()
-                        renderCourseList(academicCourses, isDynamic = true)
-                    }
-                    1 -> {
-                        fab.hide()
-                        recyclerView.visibility     = View.GONE
-                        layoutEmptyState.visibility = View.GONE
-                        startActivity(Intent(this@MainActivity, PlacementsActivity::class.java))
-                        tabLayout.post { tabLayout.getTabAt(0)?.select() }
-                    }
-                    2 -> {
-                        fab.hide()
-                        recyclerView.visibility     = View.GONE
-                        layoutEmptyState.visibility = View.GONE
-                        startActivity(Intent(this@MainActivity, NptelActivity::class.java))
-                        tabLayout.post { tabLayout.getTabAt(0)?.select() }
-                    }
-                }
-            }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
-
         fab.setOnClickListener { showAddCourseDialog() }
     }
 
     override fun onResume() {
         super.onResume()
-        if (tabLayout.selectedTabPosition == 0) {
-            loadCoursesFromDatabase()
-        }
+        loadCoursesFromDatabase()
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // LOAD FROM DB
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun loadCoursesFromDatabase() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val db      = AppDatabase.getDatabase(this@MainActivity)
+            val db      = AppDatabase.getDatabase(this@AcademicsActivity)
             val courses = db.courseDao().getAllCourses()
 
             val countMap = courses.associate { course ->
@@ -97,26 +66,20 @@ class MainActivity : AppCompatActivity() {
 
             withContext(Dispatchers.Main) {
                 academicCourses = courses
-                if (tabLayout.selectedTabPosition == 0) {
-                    renderCourseList(
-                        academicCourses,
-                        isDynamic   = true,
-                        notifCounts = countMap
-                    )
-                }
+                renderCourseList(academicCourses, countMap)
             }
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // RENDER COURSE LIST
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+    // RENDER
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun renderCourseList(
         courses: List<CourseModel>,
-        isDynamic: Boolean,
         notifCounts: Map<String, Int> = emptyMap()
     ) {
-        if (courses.isEmpty() && isDynamic) {
+        if (courses.isEmpty()) {
             recyclerView.visibility     = View.GONE
             layoutEmptyState.visibility = View.VISIBLE
         } else {
@@ -127,16 +90,15 @@ class MainActivity : AppCompatActivity() {
                 courses         = courses,
                 notifCounts     = notifCounts,
                 onItemClick     = { course -> openDetailActivity(course) },
-                onItemLongClick = { course ->
-                    if (course.id > 0) showCourseOptionsSheet(course)
-                }
+                onItemLongClick = { course -> if (course.id > 0) showCourseOptionsSheet(course) }
             )
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // NAVIGATE TO DETAIL
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun openDetailActivity(course: CourseModel) {
         startActivity(Intent(this, DetailActivity::class.java).apply {
             putExtra("COURSE_NAME",   course.courseName)
@@ -144,9 +106,10 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // LONG PRESS — Edit / Delete
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun showCourseOptionsSheet(course: CourseModel) {
         AlertDialog.Builder(this)
             .setTitle(course.courseName)
@@ -160,22 +123,24 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // CONFIRM DELETE
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun confirmDeleteCourse(course: CourseModel) {
         AlertDialog.Builder(this)
             .setTitle("Delete \"${course.courseName}\"?")
             .setMessage("This will permanently delete the course and all its notifications.")
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(this@MainActivity)
+                    val db = AppDatabase.getDatabase(this@AcademicsActivity)
                     db.courseDao().deleteCourse(course)
                     db.notificationDao().deleteNotificationsForCourse(course.courseName)
+                    db.taskStatusDao().deleteStatusesForCourse(course.courseName)
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
-                            this@MainActivity,
+                            this@AcademicsActivity,
                             "🗑️ \"${course.courseName}\" deleted",
                             Toast.LENGTH_SHORT
                         ).show()
@@ -187,9 +152,10 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // EDIT COURSE DIALOG
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun showEditCourseDialog(course: CourseModel) {
         val dialogView      = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
         val tilCourseName   = dialogView.findViewById<TextInputLayout>(R.id.tilCourseName)
@@ -234,7 +200,7 @@ class MainActivity : AppCompatActivity() {
             if (!isValid) return@setOnClickListener
 
             val oldName = course.courseName
-            val updatedCourse = course.copy(
+            val updated = course.copy(
                 courseName        = newName,
                 courseSymbol      = newSymbol.uppercase(),
                 courseId          = newId.uppercase(),
@@ -244,20 +210,15 @@ class MainActivity : AppCompatActivity() {
             )
 
             lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(this@MainActivity)
-                db.courseDao().updateCourse(updatedCourse)
+                val db = AppDatabase.getDatabase(this@AcademicsActivity)
+                db.courseDao().updateCourse(updated)
                 if (oldName != newName) {
                     db.notificationDao().updateCourseNameInNotifications(
-                        oldName = oldName,
-                        newName = newName
+                        oldName = oldName, newName = newName
                     )
                 }
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "✅ \"$newName\" updated!",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this@AcademicsActivity, "✅ \"$newName\" updated!", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                     loadCoursesFromDatabase()
                 }
@@ -265,9 +226,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // ADD COURSE DIALOG
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun showAddCourseDialog() {
         val dialogView      = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null)
         val tilCourseName   = dialogView.findViewById<TextInputLayout>(R.id.tilCourseName)
@@ -313,14 +275,10 @@ class MainActivity : AppCompatActivity() {
             )
 
             lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(this@MainActivity)
+                val db = AppDatabase.getDatabase(this@AcademicsActivity)
                 db.courseDao().insertCourse(newCourse)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "✅ $name added!",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this@AcademicsActivity, "✅ $name added!", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                     loadCoursesFromDatabase()
                 }

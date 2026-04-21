@@ -15,17 +15,20 @@
             android:theme="@style/Theme.NotificationHQ">
 
         <activity
-                android:name=".MainActivity"
+                android:name=".HomeActivity"
                 android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <activity android:name=".DetailActivity" android:exported="false" />
+        <activity android:name=".AcademicsActivity" />
         <activity android:name=".PlacementsActivity" />
+        <activity android:name=".HostelActivity" />
         <activity android:name=".NptelActivity" />
+
+        <activity android:name=".DetailActivity" android:exported="false" />
         <activity android:name=".FullNotificationActivity" />
 
         <service android:name=".NotificationListener"

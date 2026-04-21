@@ -48,6 +48,7 @@ object NotificationRouter {
     const val BUCKET_IMPORTANT_EMAILS  = "📧 Important Emails"
     const val BUCKET_NPTEL             = "📚 NPTEL"
     const val BUCKET_PLACEMENTS        = "🏢 Placements"
+    const val BUCKET_HOSTEL            = "🏠 Hostel"
 
     // ── NPTEL detection keywords ──────────────────────────────────────────
     private val NPTEL_KEYWORDS = listOf(
@@ -122,6 +123,7 @@ object NotificationRouter {
     private suspend fun routeWhatsApp(db: AppDatabase, n: DenoisedNotification) {
         val savedCourses      = db.courseDao().getAllCourses()
         val placementChannels = db.placementChannelDao().getAllChannels()
+        val hostelChannels    = db.hostelChannelDao().getAllChannels()
 
         // Tag urgent messages
         var finalTitle = n.cleanTitle
@@ -131,12 +133,22 @@ object NotificationRouter {
 
         val titleLower = finalTitle.lowercase()
 
+        // ── PASS 1: Exact substring match — Hostel ────────────────────────
+        for (channel in hostelChannels) {
+            val wGroup = channel.whatsappGroupName?.trim()?.lowercase() ?: continue
+            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) {
+                save(db, finalTitle, n.displayBody, channel.label, "whatsapp")
+                Log.d("NHQ-Router", "WA exact → Hostel [${channel.label}]: $finalTitle")
+                return
+            }
+        }
+
         // ── PASS 1: Exact substring match — Placements ────────────────────
         for (channel in placementChannels) {
             val wGroup = channel.whatsappGroupName?.trim()?.lowercase() ?: continue
             if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) {
-                save(db, finalTitle, n.displayBody, BUCKET_PLACEMENTS, "whatsapp")
-                Log.d("NHQ-Router", "WA exact → Placements: $finalTitle")
+                save(db, finalTitle, n.displayBody, channel.label, "whatsapp")
+                Log.d("NHQ-Router", "WA exact → Placements [${channel.label}]: $finalTitle")
                 return
             }
         }
@@ -151,6 +163,21 @@ object NotificationRouter {
             }
         }
 
+        // ── PASS 2: Fuzzy match — Hostel ──────────────────────────────────
+        var bestHostelScore = 0f
+        var bestHostelMatch = hostelChannels
+            .filter { !it.whatsappGroupName.isNullOrBlank() }
+            .maxByOrNull { ch ->
+                fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower)
+                    .also { score -> if (score > bestHostelScore) bestHostelScore = score }
+            }
+
+        if (bestHostelMatch != null && bestHostelScore >= FUZZY_THRESHOLD) {
+            save(db, finalTitle, n.displayBody, bestHostelMatch.label, "whatsapp")
+            Log.d("NHQ-Router", "WA fuzzy → Hostel (score=$bestHostelScore): $finalTitle")
+            return
+        }
+
         // ── PASS 2: Fuzzy match — Placements ─────────────────────────────
         var bestPlacementScore = 0f
         var bestPlacementMatch = placementChannels
@@ -161,7 +188,7 @@ object NotificationRouter {
             }
 
         if (bestPlacementMatch != null && bestPlacementScore >= FUZZY_THRESHOLD) {
-            save(db, finalTitle, n.displayBody, BUCKET_PLACEMENTS, "whatsapp")
+            save(db, finalTitle, n.displayBody, bestPlacementMatch.label, "whatsapp")
             Log.d("NHQ-Router", "WA fuzzy → Placements (score=$bestPlacementScore): $finalTitle")
             return
         }

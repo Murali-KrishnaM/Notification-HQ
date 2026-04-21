@@ -18,7 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class NptelActivity : AppCompatActivity() {
+class NptelActivity : BaseActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var layoutEmptyState: LinearLayout

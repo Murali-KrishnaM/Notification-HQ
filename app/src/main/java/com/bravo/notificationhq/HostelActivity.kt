@@ -18,34 +18,44 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class PlacementsActivity : BaseActivity() {
+/**
+ * Manages hostel notification channels (WhatsApp groups + warden emails).
+ * Mirrors [PlacementsActivity] exactly — same UX pattern, violet color theme.
+ */
+class HostelActivity : BaseActivity() {
 
-    private lateinit var recyclerView: RecyclerView
+    private lateinit var recyclerView:     RecyclerView
     private lateinit var layoutEmptyState: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_placements)
+        setContentView(R.layout.activity_hostel)
 
-        recyclerView     = findViewById(R.id.recyclerViewChannels)
-        layoutEmptyState = findViewById(R.id.layoutPlacementEmptyState)
+        recyclerView     = findViewById(R.id.recyclerViewHostelChannels)
+        layoutEmptyState = findViewById(R.id.layoutHostelEmptyState)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         loadChannels()
 
-        findViewById<FloatingActionButton>(R.id.fabAddChannel).setOnClickListener {
+        findViewById<FloatingActionButton>(R.id.fabAddHostelChannel).setOnClickListener {
             showAddChannelDialog()
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    override fun onResume() {
+        super.onResume()
+        loadChannels()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
     // LOAD CHANNELS
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun loadChannels() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val db       = AppDatabase.getDatabase(this@PlacementsActivity)
-            val channels = db.placementChannelDao().getAllChannels()
+            val db       = AppDatabase.getDatabase(this@HostelActivity)
+            val channels = db.hostelChannelDao().getAllChannels()
 
             val countMap = channels.associate { channel ->
                 channel.label to db.notificationDao().getCountForCourse(channel.label)
@@ -59,7 +69,7 @@ class PlacementsActivity : BaseActivity() {
                     recyclerView.visibility     = View.VISIBLE
                     layoutEmptyState.visibility = View.GONE
 
-                    recyclerView.adapter = PlacementChannelAdapter(
+                    recyclerView.adapter = HostelChannelAdapter(
                         channels        = channels,
                         notifCounts     = countMap,
                         onItemClick     = { channel -> openChannelDetail(channel) },
@@ -70,20 +80,22 @@ class PlacementsActivity : BaseActivity() {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // OPEN DETAIL
-    // ─────────────────────────────────────────────────────────────────────────
-    private fun openChannelDetail(channel: PlacementChannelModel) {
+    // ─────────────────────────────────────────────────────────────────────
+
+    private fun openChannelDetail(channel: HostelChannelModel) {
         startActivity(Intent(this, DetailActivity::class.java).apply {
             putExtra("COURSE_NAME",   channel.label)
-            putExtra("COURSE_SYMBOL", "🏢")
+            putExtra("COURSE_SYMBOL", "🏠")
         })
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // LONG PRESS OPTIONS
-    // ─────────────────────────────────────────────────────────────────────────
-    private fun showChannelOptionsSheet(channel: PlacementChannelModel) {
+    // ─────────────────────────────────────────────────────────────────────
+
+    private fun showChannelOptionsSheet(channel: HostelChannelModel) {
         AlertDialog.Builder(this)
             .setTitle(channel.label)
             .setItems(arrayOf("✏️  Edit Channel", "🗑️  Delete Channel")) { _, which ->
@@ -96,22 +108,24 @@ class PlacementsActivity : BaseActivity() {
             .show()
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // CONFIRM DELETE
-    // ─────────────────────────────────────────────────────────────────────────
-    private fun confirmDeleteChannel(channel: PlacementChannelModel) {
+    // ─────────────────────────────────────────────────────────────────────
+
+    private fun confirmDeleteChannel(channel: HostelChannelModel) {
         AlertDialog.Builder(this)
             .setTitle("Delete \"${channel.label}\"?")
             .setMessage("This will remove the channel and all its captured notifications.")
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(this@PlacementsActivity)
-                    db.placementChannelDao().deleteChannel(channel)
+                    val db = AppDatabase.getDatabase(this@HostelActivity)
+                    db.hostelChannelDao().deleteChannel(channel)
                     db.notificationDao().deleteNotificationsForCourse(channel.label)
+                    db.taskStatusDao().deleteStatusesForCourse(channel.label)
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
-                            this@PlacementsActivity,
+                            this@HostelActivity,
                             "🗑️ \"${channel.label}\" deleted",
                             Toast.LENGTH_SHORT
                         ).show()
@@ -123,16 +137,18 @@ class PlacementsActivity : BaseActivity() {
             .show()
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // ADD CHANNEL DIALOG
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+
     private fun showAddChannelDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_channel, null)
-        val tilLabel   = dialogView.findViewById<TextInputLayout>(R.id.tilChannelLabel)
-        val tilEmails  = dialogView.findViewById<TextInputLayout>(R.id.tilPlacementEmails)
-        val etLabel    = dialogView.findViewById<TextInputEditText>(R.id.etChannelLabel)
-        val etWaGroup  = dialogView.findViewById<TextInputEditText>(R.id.etPlacementWaGroup)
-        val etEmails   = dialogView.findViewById<TextInputEditText>(R.id.etPlacementEmails)
+        val dialogView = LayoutInflater.from(this)
+            .inflate(R.layout.dialog_add_hostel_channel, null)
+        val tilLabel   = dialogView.findViewById<TextInputLayout>(R.id.tilHostelChannelLabel)
+        val tilEmails  = dialogView.findViewById<TextInputLayout>(R.id.tilHostelEmails)
+        val etLabel    = dialogView.findViewById<TextInputEditText>(R.id.etHostelChannelLabel)
+        val etWaGroup  = dialogView.findViewById<TextInputEditText>(R.id.etHostelWaGroup)
+        val etEmails   = dialogView.findViewById<TextInputEditText>(R.id.etHostelEmails)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
@@ -161,20 +177,19 @@ class PlacementsActivity : BaseActivity() {
             }
             if (!isValid) return@setOnClickListener
 
-            val newChannel = PlacementChannelModel(
-                label             = label,
-                whatsappGroupName = waGroup.ifEmpty { null },
-                emailAddresses    = emails
-            )
-
             lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(this@PlacementsActivity)
-                db.placementChannelDao().insertChannel(newChannel)
-
+                val db = AppDatabase.getDatabase(this@HostelActivity)
+                db.hostelChannelDao().insertChannel(
+                    HostelChannelModel(
+                        label             = label,
+                        whatsappGroupName = waGroup.ifEmpty { null },
+                        emailAddresses    = emails
+                    )
+                )
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
-                        this@PlacementsActivity,
-                        "✅ \"$label\" channel added!",
+                        this@HostelActivity,
+                        "✅ \"$label\" added!",
                         Toast.LENGTH_SHORT
                     ).show()
                     dialog.dismiss()
@@ -184,23 +199,25 @@ class PlacementsActivity : BaseActivity() {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // EDIT CHANNEL DIALOG
-    // ─────────────────────────────────────────────────────────────────────────
-    private fun showEditChannelDialog(channel: PlacementChannelModel) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_channel, null)
-        val tilLabel   = dialogView.findViewById<TextInputLayout>(R.id.tilChannelLabel)
-        val tilEmails  = dialogView.findViewById<TextInputLayout>(R.id.tilPlacementEmails)
-        val etLabel    = dialogView.findViewById<TextInputEditText>(R.id.etChannelLabel)
-        val etWaGroup  = dialogView.findViewById<TextInputEditText>(R.id.etPlacementWaGroup)
-        val etEmails   = dialogView.findViewById<TextInputEditText>(R.id.etPlacementEmails)
+    // ─────────────────────────────────────────────────────────────────────
+
+    private fun showEditChannelDialog(channel: HostelChannelModel) {
+        val dialogView = LayoutInflater.from(this)
+            .inflate(R.layout.dialog_add_hostel_channel, null)
+        val tilLabel   = dialogView.findViewById<TextInputLayout>(R.id.tilHostelChannelLabel)
+        val tilEmails  = dialogView.findViewById<TextInputLayout>(R.id.tilHostelEmails)
+        val etLabel    = dialogView.findViewById<TextInputEditText>(R.id.etHostelChannelLabel)
+        val etWaGroup  = dialogView.findViewById<TextInputEditText>(R.id.etHostelWaGroup)
+        val etEmails   = dialogView.findViewById<TextInputEditText>(R.id.etHostelEmails)
 
         etLabel.setText(channel.label)
         etWaGroup.setText(channel.whatsappGroupName ?: "")
         etEmails.setText(channel.emailAddresses)
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Edit Channel")
+            .setTitle("Edit Hostel Channel")
             .setView(dialogView)
             .setPositiveButton("Save", null)
             .setNegativeButton("Cancel") { d, _ -> d.dismiss() }
@@ -228,26 +245,24 @@ class PlacementsActivity : BaseActivity() {
             if (!isValid) return@setOnClickListener
 
             val oldLabel = channel.label
-            val updatedChannel = channel.copy(
-                label             = newLabel,
-                whatsappGroupName = newWaGroup.ifEmpty { null },
-                emailAddresses    = newEmails
-            )
 
             lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(this@PlacementsActivity)
-                db.placementChannelDao().updateChannel(updatedChannel)
-
+                val db = AppDatabase.getDatabase(this@HostelActivity)
+                db.hostelChannelDao().updateChannel(
+                    channel.copy(
+                        label             = newLabel,
+                        whatsappGroupName = newWaGroup.ifEmpty { null },
+                        emailAddresses    = newEmails
+                    )
+                )
                 if (oldLabel != newLabel) {
                     db.notificationDao().updateCourseNameInNotifications(
-                        oldName = oldLabel,
-                        newName = newLabel
+                        oldName = oldLabel, newName = newLabel
                     )
                 }
-
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
-                        this@PlacementsActivity,
+                        this@HostelActivity,
                         "✅ \"$newLabel\" updated!",
                         Toast.LENGTH_SHORT
                     ).show()
