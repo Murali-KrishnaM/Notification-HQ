@@ -31,7 +31,7 @@
         <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="NOTIFICATION HQ"
+                android:text="YOUR ACADEMIC RADAR"
                 android:textColor="@color/accent_green"
                 android:textSize="11sp"
                 android:letterSpacing="0.25"
@@ -41,7 +41,7 @@
         <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Dashboard"
+                android:text="NOTIFICATION HQ"
                 android:textColor="@color/text_primary"
                 android:textSize="30sp"
                 android:fontFamily="@font/display_font"
@@ -111,7 +111,7 @@
                     <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="🚨 URGENT"
+                            android:text="🔴 URGENT"
                             android:textSize="10sp"
                             android:fontFamily="@font/mono_font"
                             android:textColor="@color/text_muted"
@@ -142,7 +142,7 @@
                     <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="⏰ DUE SOON"
+                            android:text="🟡 DUE SOON"
                             android:textSize="10sp"
                             android:fontFamily="@font/mono_font"
                             android:textColor="@color/text_muted"

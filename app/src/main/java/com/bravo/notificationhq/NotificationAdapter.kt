@@ -62,8 +62,8 @@ class NotificationAdapter(
 
         // ── Clean message body (strip priority prefix tags) ────────────────
         val cleanText = text
-            .replace("🚨 URGENT", "")
-            .replace("⏰ DUE", "")
+            .replace("🔴 URGENT", "")
+            .replace("🟡 DUE", "")
             .trim()
         holder.tvMessage.text = cleanText
 
@@ -78,15 +78,15 @@ class NotificationAdapter(
 
         // ── Priority chip + accent bar ─────────────────────────────────────
         when {
-            text.contains("🚨 URGENT") -> {
+            text.contains("🔴 URGENT") -> {
                 holder.tvPriorityChip.visibility = View.VISIBLE
-                holder.tvPriorityChip.text = "🚨 URGENT"
+                holder.tvPriorityChip.text = "🔴 URGENT"
                 holder.tvPriorityChip.setBackgroundResource(R.drawable.chip_urgent_dark)
                 holder.viewAccentBar.setBackgroundColor(colorNeonRed)
             }
-            text.contains("⏰ DUE") -> {
+            text.contains("🟡 DUE") -> {
                 holder.tvPriorityChip.visibility = View.VISIBLE
-                holder.tvPriorityChip.text = "⏰ DUE"
+                holder.tvPriorityChip.text = "🟡 DUE"
                 holder.tvPriorityChip.setBackgroundResource(
                     holder.itemView.context.resources.getIdentifier(
                         "chip_due_dark", "drawable", holder.itemView.context.packageName

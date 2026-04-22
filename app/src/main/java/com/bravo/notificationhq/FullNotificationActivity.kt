@@ -48,8 +48,8 @@ class FullNotificationActivity : AppCompatActivity() {
 
         // ── Clean message body (strip priority tags) ───────────
         val cleanText = text
-            .replace("🚨 URGENT", "")
-            .replace("⏰ DUE", "")
+            .replace("🔴 URGENT", "")
+            .replace("🟡 DUE", "")
             .trim()
         tvMessage.text = cleanText
 
@@ -69,16 +69,16 @@ class FullNotificationActivity : AppCompatActivity() {
 
         // ── Priority chip + accent bar + header color ──────────
         when {
-            text.contains("🚨 URGENT") -> {
+            text.contains("🔴 URGENT") -> {
                 tvPriorityChip.visibility = View.VISIBLE
-                tvPriorityChip.text = "🚨 URGENT"
+                tvPriorityChip.text = "🔴 URGENT"
                 tvPriorityChip.background.setTint(Color.parseColor("#D32F2F"))
                 viewAccentBar.setBackgroundColor(Color.parseColor("#D32F2F"))
                 header.setBackgroundColor(Color.parseColor("#D32F2F"))
             }
-            text.contains("⏰ DUE") -> {
+            text.contains("🟡 DUE") -> {
                 tvPriorityChip.visibility = View.VISIBLE
-                tvPriorityChip.text = "⏰ DUE"
+                tvPriorityChip.text = "🟡 DUE"
                 tvPriorityChip.background.setTint(Color.parseColor("#F57F17"))
                 viewAccentBar.setBackgroundColor(Color.parseColor("#F57F17"))
                 header.setBackgroundColor(Color.parseColor("#F57F17"))

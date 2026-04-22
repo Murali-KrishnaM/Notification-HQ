@@ -23,7 +23,7 @@ import java.util.Calendar
  *
  *   1. Greeting line (Good morning / afternoon / evening)
  *   2. Stats bar — Urgent count | Due count | Pending (NOT_STARTED) count
- *   3. Next Due card — the most recent ⏰ DUE notification with a tap to open
+ *   3. Next Due card — the most recent 🟡 DUE notification with a tap to open
  *   4. Recent Activity — last 10 notifications across all sources
  *
  * All data is loaded in a single IO coroutine pass on every onResume
@@ -104,10 +104,10 @@ class HomeActivity : BaseActivity() {
 
             // ── Stats computation ─────────────────────────────────────────
             val urgentCount = allNotifs.count {
-                (it.title ?: "").contains("🚨 URGENT") || (it.text ?: "").contains("🚨 URGENT")
+                (it.title ?: "").contains("🔴 URGENT") || (it.text ?: "").contains("🔴 URGENT")
             }
             val dueCount = allNotifs.count {
-                (it.title ?: "").contains("⏰ DUE") || (it.text ?: "").contains("⏰ DUE")
+                (it.title ?: "").contains("🟡 DUE") || (it.text ?: "").contains("🟡 DUE")
             }
 
             // Pending = notifications with no status row (default NOT_STARTED)
@@ -125,9 +125,9 @@ class HomeActivity : BaseActivity() {
             val pendingCount = allNotifs.count { it.id !in resolvedIds }
 
             // ── Next due item ─────────────────────────────────────────────
-            // The most recent notification whose title starts with ⏰
+            // The most recent notification whose title starts with
             val nextDueNotif = allNotifs.firstOrNull {
-                (it.title ?: "").startsWith("⏰")
+                (it.title ?: "").startsWith("🟡")
             }
 
             // ── Recent activity — last 10 across all sources ───────────────
@@ -176,13 +176,13 @@ class HomeActivity : BaseActivity() {
         // Course chip — use the source (course name) truncated
         tvDueCourseChip.text = (notif.source ?: "Course").take(20)
 
-        // Title — strip the ⏰ prefix for cleaner display
+        // Title — strip the 🟡 prefix for cleaner display
         tvDueTitle.text = (notif.title ?: "")
-            .replace("⏰ DUE", "").replace("⏰", "").trim()
+            .replace("🟡 DUE", "").replace("🟡", "").trim()
 
         // Body — first two lines of the message
         val cleanBody = (notif.text ?: "")
-            .replace("⏰ DUE", "").replace("⏰", "").trim()
+            .replace("🟡 DUE", "").replace("🟡", "").trim()
         tvDueBody.text = cleanBody
 
         // Tap → open the course feed for this notification's source
@@ -190,7 +190,7 @@ class HomeActivity : BaseActivity() {
             startActivity(
                 Intent(this, DetailActivity::class.java).apply {
                     putExtra("COURSE_NAME",   notif.source ?: "")
-                    putExtra("COURSE_SYMBOL", "⏰")
+                    putExtra("COURSE_SYMBOL", "🟡")
                 }
             )
         }

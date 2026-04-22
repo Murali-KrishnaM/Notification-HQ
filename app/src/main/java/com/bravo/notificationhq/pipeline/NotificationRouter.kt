@@ -17,7 +17,7 @@ import com.bravo.notificationhq.NotificationModel
  * ── ROUTING RULES ─────────────────────────────────────────────────────────
  *
  * WHATSAPP:
- *   1. Tag message with 🚨 URGENT if urgency keywords detected.
+ *   1. Tag message with 🔴 URGENT if urgency keywords detected.
  *   2. Exact substring: WA group name ↔ Placement channel → Placements.
  *   3. Exact substring: WA group name ↔ Academic course   → that course.
  *   4. Fuzzy match (≥ 60% token overlap): same order as above.
@@ -27,7 +27,7 @@ import com.bravo.notificationhq.NotificationModel
  *   1. NPTEL keyword scan on full corpus (FIRST, unconditional).
  *      → If match: pick specific NPTEL channel label or generic 📚 NPTEL bucket.
  *      → HARD STOP — no further checks.
- *   2. Attendance keyword detected → tag 🚨 URGENT, jump to course match.
+ *   2. Attendance keyword detected → tag 🔴 URGENT, jump to course match.
  *      → Best course match wins. If none → 📧 Important Emails (still URGENT).
  *   3. Placement sender check (email address OR display name match).
  *      → Route to 🏢 Placements.
@@ -87,7 +87,8 @@ object NotificationRouter {
     private val WA_URGENT_KEYWORDS = listOf(
         "room change", "room no", "cancel", "cancelled",
         "rescheduled", "postponed", "urgent", "important",
-        "moved to", "shifted to", "no class", "holiday"
+        "moved to", "shifted to", "no class", "holiday",
+        "venue" , "come", "class", "go", "last" , "final"
     )
 
     // ── Fuzzy match threshold ─────────────────────────────────────────────
@@ -128,7 +129,7 @@ object NotificationRouter {
         // Tag urgent messages
         var finalTitle = n.cleanTitle
         if (WA_URGENT_KEYWORDS.any { n.searchLower.contains(it) }) {
-            finalTitle = "🚨 URGENT: $finalTitle"
+            finalTitle = "🔴 URGENT: $finalTitle"
         }
 
         val titleLower = finalTitle.lowercase()
@@ -254,7 +255,7 @@ object NotificationRouter {
         val isAttendance = ATTENDANCE_KEYWORDS.any { n.searchLower.contains(it) }
 
         if (isAttendance) {
-            Log.d("NHQ-Router", "Gmail: attendance mail detected, applying 🚨 URGENT")
+            Log.d("NHQ-Router", "Gmail: attendance mail detected, applying 🔴 URGENT")
 
             // Try to match to a specific course first
             var bestScore = 0
@@ -270,7 +271,7 @@ object NotificationRouter {
             }
 
             // Always prefix with URGENT for attendance
-            val urgentTitle = "🚨 URGENT: ${n.cleanTitle}"
+            val urgentTitle = "🔴 URGENT: ${n.cleanTitle}"
             save(db, urgentTitle, n.displayBody, destination, "gmail")
             Log.d("NHQ-Router", "Gmail → Attendance URGENT → $destination")
             return
@@ -338,7 +339,7 @@ object NotificationRouter {
             }
 
             val finalTitle = buildDueTitle(n.cleanTitle, n.fullCorpus) ?: "📘 ${n.cleanTitle}"
-            save(db, finalTitle, n.displayBody, destination, "gmail")
+            save(db, finalTitle, n.displayBody, destination, "classroom")
             Log.d("NHQ-Router", "Gmail → Classroom origin → $destination (score=$bestScore)")
             return
         }
@@ -419,7 +420,7 @@ object NotificationRouter {
     }
 
     /**
-     * If the corpus contains a due-date phrase, prepend a ⏰ DUE tag.
+     * If the corpus contains a due-date phrase, prepend a 🟡 DUE tag.
      * Returns null if no due-date phrase found (caller uses a default prefix).
      */
     private fun buildDueTitle(rawTitle: String, fullCorpus: String): String? {
@@ -429,6 +430,8 @@ object NotificationRouter {
                 lower.contains("due on")     ||
                 lower.contains("last date")  ||
                 lower.contains("submit by")  ||
+                lower.contains("due")  ||
+                lower.contains("ends on")  ||
                 lower.contains("deadline")
 
         if (!hasDue) return null
@@ -439,8 +442,8 @@ object NotificationRouter {
             ?.take(25)
             ?.trim() ?: ""
 
-        return if (datePart.isNotEmpty()) "⏰ DUE $datePart — $rawTitle"
-        else "⏰ $rawTitle"
+        return if (datePart.isNotEmpty()) "🟡 DUE $datePart — $rawTitle"
+        else "🟡 $rawTitle"
     }
 
     /**
