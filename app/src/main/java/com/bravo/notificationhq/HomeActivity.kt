@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -28,22 +29,40 @@ import java.util.Calendar
  *
  * All data is loaded in a single IO coroutine pass on every onResume
  * so the dashboard always reflects the current state of the DB.
+ *
+ * Bug-fixes applied
+ * ─────────────────
+ * 1. RACE CONDITION / MID-SCROLL ADAPTER SWAP — loadDashboard() is called on
+ *    every onResume.  Without cancellation the previous coroutine can still be
+ *    in-flight when the new one finishes, causing two back-to-back
+ *    `recyclerRecent.adapter = …` assignments while the user is scrolling,
+ *    which crashes RecyclerView or silently corrupts item positions.
+ *    Fix: track a [dashboardJob] and cancel it before launching a new one.
+ *
+ * 2. CONTEXT / MEMORY LEAK — NotificationAdapter now requires a caller-owned
+ *    CoroutineScope.  Pass [lifecycleScope] so DB coroutines inside the
+ *    adapter are cancelled when the Activity is destroyed.
  */
 class HomeActivity : BaseActivity() {
 
     // ── Views ──────────────────────────────────────────────────────────────
-    private lateinit var tvGreeting:       TextView
-    private lateinit var tvUrgentCount:    TextView
-    private lateinit var tvDueCount:       TextView
-    private lateinit var tvNotStartedCount:TextView
-    private lateinit var cardNextDue:      LinearLayout
-    private lateinit var layoutAllClear:   LinearLayout
-    private lateinit var layoutDueItem:    LinearLayout
-    private lateinit var tvDueCourseChip:  TextView
-    private lateinit var tvDueTitle:       TextView
-    private lateinit var tvDueBody:        TextView
-    private lateinit var recyclerRecent:   RecyclerView
-    private lateinit var layoutRecentEmpty:LinearLayout
+    private lateinit var tvGreeting:        TextView
+    private lateinit var tvUrgentCount:     TextView
+    private lateinit var tvDueCount:        TextView
+    private lateinit var tvNotStartedCount: TextView
+    private lateinit var cardNextDue:       LinearLayout
+    private lateinit var layoutAllClear:    LinearLayout
+    private lateinit var layoutDueItem:     LinearLayout
+    private lateinit var tvDueCourseChip:   TextView
+    private lateinit var tvDueTitle:        TextView
+    private lateinit var tvDueBody:         TextView
+    private lateinit var recyclerRecent:    RecyclerView
+    private lateinit var layoutRecentEmpty: LinearLayout
+
+    // BUG FIX: Track the active dashboard load so we can cancel it before
+    // starting a new one on every onResume, preventing stale coroutines from
+    // swapping the adapter mid-scroll.
+    private var dashboardJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,7 +115,14 @@ class HomeActivity : BaseActivity() {
     // ─────────────────────────────────────────────────────────────────────
 
     private fun loadDashboard() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        // BUG FIX: Cancel any in-flight dashboard load before launching a new
+        // one.  Without this, rapid onResume calls (e.g. returning from
+        // DetailActivity) leave two coroutines racing to call
+        // `recyclerRecent.adapter = …`, which can crash RecyclerView or corrupt
+        // item positions mid-scroll.
+        dashboardJob?.cancel()
+
+        dashboardJob = lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(this@HomeActivity)
 
             // Load all notifications in one query, sorted newest first
@@ -112,8 +138,8 @@ class HomeActivity : BaseActivity() {
 
             // Pending = notifications with no status row (default NOT_STARTED)
             // We count total notifs minus those marked IN_PROGRESS or SUBMITTED
-            val allNotifIds   = allNotifs.map { it.id }
-            val allStatuses   = if (allNotifIds.isNotEmpty()) {
+            val allNotifIds = allNotifs.map { it.id }
+            val allStatuses = if (allNotifIds.isNotEmpty()) {
                 db.taskStatusDao().getStatusesForIds(allNotifIds)
             } else emptyList()
 
@@ -125,7 +151,6 @@ class HomeActivity : BaseActivity() {
             val pendingCount = allNotifs.count { it.id !in resolvedIds }
 
             // ── Next due item ─────────────────────────────────────────────
-            // The most recent notification whose title starts with
             val nextDueNotif = allNotifs.firstOrNull {
                 (it.title ?: "").startsWith("🟡")
             }
@@ -213,11 +238,17 @@ class HomeActivity : BaseActivity() {
         recyclerRecent.visibility    = View.VISIBLE
         layoutRecentEmpty.visibility = View.GONE
 
+        // BUG FIX: Pass lifecycleScope so the adapter's internal DB coroutines
+        // (status cycle, delete) are tied to this Activity's lifecycle and
+        // automatically cancelled on destroy, preventing context leaks.
         recyclerRecent.adapter = NotificationAdapter(
             notifications = notifications,
             statusMap     = statusMap,
+            scope         = lifecycleScope,
             onListChanged = {
-                // Reload dashboard after a delete from the recent list
+                // Reload dashboard after a delete from the recent list.
+                // dashboardJob?.cancel() inside loadDashboard() prevents the
+                // now-stale previous load from racing with this reload.
                 loadDashboard()
             }
         )

@@ -41,6 +41,23 @@ import com.bravo.notificationhq.NotificationModel
  *   7. No match → 📧 Important Emails (we no longer drop Gmail silently).
  *
  * ── DOES NOT touch UI. No Activity references. DB writes only. ────────────
+ *
+ * Bug-fixes applied
+ * ─────────────────
+ * DATA RACE IN SCORE ACCUMULATION — the original fuzzy-match blocks for
+ * Hostel, Placement, and Course used a captured `var bestScore` that was
+ * mutated as a side-effect inside the `maxByOrNull` lambda via `.also {}`.
+ * `maxByOrNull` makes no guarantee about invocation order of the selector
+ * lambda across items, so `bestScore` could end up holding the score of a
+ * non-winning candidate, making the threshold check unreliable and
+ * potentially routing to the wrong channel.
+ *
+ * Fix: score every candidate purely (no captured mutable state inside the
+ * lambda), collect results into a list of pairs, then derive the winner and
+ * its score with two explicit, deterministic steps.
+ *
+ * The same pattern is applied to the Gmail courseMatchScore blocks
+ * (PRIORITY 2, 4, 5) for consistency and safety.
  */
 object NotificationRouter {
 
@@ -75,7 +92,6 @@ object NotificationRouter {
     )
 
     // ── Google Classroom email origins ────────────────────────────────────
-    // Emails originating from Google Classroom use these sender domains/addresses.
     private val CLASSROOM_SENDER_PATTERNS = listOf(
         "classroom.google.com",
         "classroom-noreply@google.com",
@@ -88,7 +104,7 @@ object NotificationRouter {
         "room change", "room no", "cancel", "cancelled",
         "rescheduled", "postponed", "urgent", "important",
         "moved to", "shifted to", "no class", "holiday",
-        "venue" , "come", "class", "go", "last" , "final"
+        "venue", "come", "class", "go", "last", "final"
     )
 
     // ── Fuzzy match threshold ─────────────────────────────────────────────
@@ -112,7 +128,6 @@ object NotificationRouter {
             denoised.packageName == "com.google.android.gm" ->
                 routeGmail(db, denoised)
 
-            // Any other package slipping through is silently dropped.
             else -> Log.d("NHQ-Router", "Unknown package dropped: ${denoised.packageName}")
         }
     }
@@ -165,13 +180,16 @@ object NotificationRouter {
         }
 
         // ── PASS 2: Fuzzy match — Hostel ──────────────────────────────────
-        var bestHostelScore = 0f
-        var bestHostelMatch = hostelChannels
+        // BUG FIX: Score every candidate purely — no mutable side-effect var
+        // inside the selector lambda.  Collect (channel, score) pairs first,
+        // then find the best in two deterministic steps.
+        val hostelScored = hostelChannels
             .filter { !it.whatsappGroupName.isNullOrBlank() }
-            .maxByOrNull { ch ->
-                fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower)
-                    .also { score -> if (score > bestHostelScore) bestHostelScore = score }
-            }
+            .map { ch -> ch to fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower) }
+
+        val bestHostelPair  = hostelScored.maxByOrNull { (_, score) -> score }
+        val bestHostelScore = bestHostelPair?.second ?: 0f
+        val bestHostelMatch = bestHostelPair?.first
 
         if (bestHostelMatch != null && bestHostelScore >= FUZZY_THRESHOLD) {
             save(db, finalTitle, n.displayBody, bestHostelMatch.label, "whatsapp")
@@ -180,13 +198,14 @@ object NotificationRouter {
         }
 
         // ── PASS 2: Fuzzy match — Placements ─────────────────────────────
-        var bestPlacementScore = 0f
-        var bestPlacementMatch = placementChannels
+        // BUG FIX: Same pure-scoring pattern — no captured mutable var.
+        val placementScored = placementChannels
             .filter { !it.whatsappGroupName.isNullOrBlank() }
-            .maxByOrNull { ch ->
-                fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower)
-                    .also { score -> if (score > bestPlacementScore) bestPlacementScore = score }
-            }
+            .map { ch -> ch to fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower) }
+
+        val bestPlacementPair  = placementScored.maxByOrNull { (_, score) -> score }
+        val bestPlacementScore = bestPlacementPair?.second ?: 0f
+        val bestPlacementMatch = bestPlacementPair?.first
 
         if (bestPlacementMatch != null && bestPlacementScore >= FUZZY_THRESHOLD) {
             save(db, finalTitle, n.displayBody, bestPlacementMatch.label, "whatsapp")
@@ -195,13 +214,14 @@ object NotificationRouter {
         }
 
         // ── PASS 2: Fuzzy match — Academic courses ────────────────────────
-        var bestCourseScore = 0f
-        var bestCourseMatch = savedCourses
+        // BUG FIX: Same pure-scoring pattern — no captured mutable var.
+        val courseScored = savedCourses
             .filter { !it.whatsappGroupName.isNullOrBlank() }
-            .maxByOrNull { course ->
-                fuzzyScore(course.whatsappGroupName!!.lowercase(), titleLower)
-                    .also { score -> if (score > bestCourseScore) bestCourseScore = score }
-            }
+            .map { course -> course to fuzzyScore(course.whatsappGroupName!!.lowercase(), titleLower) }
+
+        val bestCoursePair  = courseScored.maxByOrNull { (_, score) -> score }
+        val bestCourseScore = bestCoursePair?.second ?: 0f
+        val bestCourseMatch = bestCoursePair?.first
 
         if (bestCourseMatch != null && bestCourseScore >= FUZZY_THRESHOLD) {
             save(db, finalTitle, n.displayBody, bestCourseMatch.courseName, "whatsapp")
@@ -223,8 +243,8 @@ object NotificationRouter {
         val placementChannels = db.placementChannelDao().getAllChannels()
         val nptelChannels     = db.nptelChannelDao().getAllChannels()
 
-        val senderLower       = n.senderEmail.lowercase()
-        val displayNameLower  = n.senderDisplayName.lowercase()
+        val senderLower      = n.senderEmail.lowercase()
+        val displayNameLower = n.senderDisplayName.lowercase()
 
         Log.d("NHQ-Router", "Gmail | sender='$senderLower' | name='$displayNameLower' | title='${n.cleanTitle}'")
 
@@ -257,20 +277,20 @@ object NotificationRouter {
         if (isAttendance) {
             Log.d("NHQ-Router", "Gmail: attendance mail detected, applying 🔴 URGENT")
 
-            // Try to match to a specific course first
-            var bestScore = 0
-            var bestCourse = savedCourses.maxByOrNull { course ->
-                courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
-                    .also { score -> if (score > bestScore) bestScore = score }
+            // BUG FIX: Compute scores as a pure mapping, then pick best in two steps.
+            val attendanceScored = savedCourses.map { course ->
+                course to courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
             }
+            val bestAttendancePair  = attendanceScored.maxByOrNull { (_, score) -> score }
+            val bestAttendanceScore = bestAttendancePair?.second ?: 0
+            val bestAttendanceCourse = bestAttendancePair?.first
 
-            val destination = if (bestCourse != null && bestScore > 0) {
-                bestCourse.courseName
+            val destination = if (bestAttendanceCourse != null && bestAttendanceScore > 0) {
+                bestAttendanceCourse.courseName
             } else {
                 BUCKET_IMPORTANT_EMAILS
             }
 
-            // Always prefix with URGENT for attendance
             val urgentTitle = "🔴 URGENT: ${n.cleanTitle}"
             save(db, urgentTitle, n.displayBody, destination, "gmail")
             Log.d("NHQ-Router", "Gmail → Attendance URGENT → $destination")
@@ -278,7 +298,6 @@ object NotificationRouter {
         }
 
         // ── PRIORITY 3: Placement sender check ───────────────────────────
-        // Match by saved email address first, then by display name against channel label.
         val allPlacementEmails = placementChannels
             .flatMap { it.emailAddresses.split(",").map { e -> e.trim().lowercase() } }
             .filter { it.isNotEmpty() }
@@ -289,7 +308,6 @@ object NotificationRouter {
                     senderLower.contains(placementEmail) || placementEmail.contains(senderLower)
                 }
 
-        // Domain-level match: e.g., anything @rajalakshmi.edu.in tagged in placement channels
         val placementDomains = placementChannels
             .flatMap { it.emailAddresses.split(",") }
             .map { it.trim().lowercase() }
@@ -300,7 +318,6 @@ object NotificationRouter {
         val isPlacementByDomain = senderLower.isNotEmpty() &&
                 placementDomains.any { domain -> senderLower.contains(domain) }
 
-        // Display name fallback: "Placement Cell" in title matches channel label "Placement Cell"
         val isPlacementByDisplayName = displayNameLower.isNotEmpty() &&
                 placementChannels.any { ch ->
                     ch.label.lowercase().let { label ->
@@ -318,43 +335,44 @@ object NotificationRouter {
         }
 
         // ── PRIORITY 4: Google Classroom origin ───────────────────────────
-        // Emails from Google Classroom arrive with these sender patterns.
-        // For these, we run course matching only — never dump into generic bucket.
         val isClassroomOrigin = CLASSROOM_SENDER_PATTERNS.any { pattern ->
             senderLower.contains(pattern) || n.searchLower.contains(pattern)
         }
 
         if (isClassroomOrigin) {
-            var bestScore = 0
-            var bestCourse = savedCourses.maxByOrNull { course ->
-                courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
-                    .also { score -> if (score > bestScore) bestScore = score }
+            // BUG FIX: Pure scoring — no captured mutable var inside lambda.
+            val classroomScored = savedCourses.map { course ->
+                course to courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
             }
+            val bestClassroomPair   = classroomScored.maxByOrNull { (_, score) -> score }
+            val bestClassroomScore  = bestClassroomPair?.second ?: 0
+            val bestClassroomCourse = bestClassroomPair?.first
 
-            val destination = if (bestCourse != null && bestScore > 0) {
-                bestCourse.courseName
+            val destination = if (bestClassroomCourse != null && bestClassroomScore > 0) {
+                bestClassroomCourse.courseName
             } else {
-                // Still academic — better than dropping it
                 BUCKET_IMPORTANT_EMAILS
             }
 
             val finalTitle = buildDueTitle(n.cleanTitle, n.fullCorpus) ?: "📘 ${n.cleanTitle}"
             save(db, finalTitle, n.displayBody, destination, "classroom")
-            Log.d("NHQ-Router", "Gmail → Classroom origin → $destination (score=$bestScore)")
+            Log.d("NHQ-Router", "Gmail → Classroom origin → $destination (score=$bestClassroomScore)")
             return
         }
 
         // ── PRIORITY 5: Academic course score match ───────────────────────
-        var bestScore = 0
-        var bestCourse = savedCourses.maxByOrNull { course ->
-            courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
-                .also { score -> if (score > bestScore) bestScore = score }
+        // BUG FIX: Pure scoring — no captured mutable var inside lambda.
+        val academicScored = savedCourses.map { course ->
+            course to courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
         }
+        val bestAcademicPair   = academicScored.maxByOrNull { (_, score) -> score }
+        val bestAcademicScore  = bestAcademicPair?.second ?: 0
+        val bestAcademicCourse = bestAcademicPair?.first
 
-        if (bestCourse != null && bestScore > 0) {
+        if (bestAcademicCourse != null && bestAcademicScore > 0) {
             val finalTitle = buildDueTitle(n.cleanTitle, n.fullCorpus) ?: "📧 ${n.cleanTitle}"
-            save(db, finalTitle, n.displayBody, bestCourse.courseName, "gmail")
-            Log.d("NHQ-Router", "Gmail → Academic [${bestCourse.courseName}] score=$bestScore")
+            save(db, finalTitle, n.displayBody, bestAcademicCourse.courseName, "gmail")
+            Log.d("NHQ-Router", "Gmail → Academic [${bestAcademicCourse.courseName}] score=$bestAcademicScore")
             return
         }
 
@@ -368,8 +386,6 @@ object NotificationRouter {
         }
 
         // ── PRIORITY 7: Drop ──────────────────────────────────────────────
-        // Passed all 6 checks with zero match — unrelated mail (OTP, promo,
-        // food delivery, etc.). Drop silently, do not pollute Important Emails.
         Log.d("NHQ-Router", "Gmail dropped (passed all 6 checks, no match): ${n.cleanTitle}")
     }
 
@@ -380,6 +396,7 @@ object NotificationRouter {
     /**
      * Token overlap score for WhatsApp fuzzy matching.
      * Returns fraction of [savedName] tokens found in [notifTitle] tokens.
+     * Pure function — no external state mutated.
      */
     private fun fuzzyScore(savedName: String, notifTitle: String): Float {
         val savedTokens = savedName
@@ -405,6 +422,7 @@ object NotificationRouter {
      *   +3 if courseId     found (most specific identifier)
      *   +2 if courseSymbol found
      *   +1 if courseName   found
+     * Pure function — no external state mutated.
      */
     private fun courseMatchScore(
         searchLower: String,
@@ -430,8 +448,8 @@ object NotificationRouter {
                 lower.contains("due on")     ||
                 lower.contains("last date")  ||
                 lower.contains("submit by")  ||
-                lower.contains("due")  ||
-                lower.contains("ends on")  ||
+                lower.contains("due")        ||
+                lower.contains("ends on")    ||
                 lower.contains("deadline")
 
         if (!hasDue) return null

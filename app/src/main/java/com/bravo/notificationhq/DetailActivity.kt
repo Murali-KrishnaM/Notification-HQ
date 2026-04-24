@@ -93,9 +93,13 @@ class DetailActivity : AppCompatActivity() {
             tvSubtitle.text = "$count notification${if (count == 1) "" else "s"}" +
                     if (courseSymbol.isNotEmpty()) " · $courseSymbol" else ""
 
+            // BUG FIX: Pass lifecycleScope so the adapter's coroutines are
+            // bound to this Activity's lifecycle and cancelled on destroy,
+            // preventing context leaks from long-running DB operations.
             recyclerView.adapter = NotificationAdapter(
                 notifications = notifications,
                 statusMap     = statusMap,
+                scope         = lifecycleScope,
                 onListChanged = {
                     // Called by adapter after a delete — check if list is now empty
                     if (notifications.isEmpty()) {
