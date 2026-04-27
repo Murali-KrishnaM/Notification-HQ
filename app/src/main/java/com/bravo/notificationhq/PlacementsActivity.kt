@@ -108,6 +108,13 @@ class PlacementsActivity : BaseActivity() {
                     val db = AppDatabase.getDatabase(this@PlacementsActivity)
                     db.placementChannelDao().deleteChannel(channel)
                     db.notificationDao().deleteNotificationsForCourse(channel.label)
+                    // FIX: Also purge task_status_table rows whose parent
+                    // notifications just got deleted.  Without this, orphaned
+                    // status rows accumulate and inflate the dashboard's pending
+                    // count — deleted notifications no longer appear in the notif
+                    // list, but their IN_PROGRESS status rows still exist and
+                    // are counted by the pending filter.
+                    db.taskStatusDao().deleteStatusesForCourse(channel.label)
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(

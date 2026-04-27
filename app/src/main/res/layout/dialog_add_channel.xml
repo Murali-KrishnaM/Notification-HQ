@@ -156,11 +156,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="4dp"
-            android:hint="Email Address(es) (comma separated)"
+            android:hint="Sender Name(s) Comma seperated"
             app:boxStrokeColor="@color/accent_blue"
             app:boxBackgroundColor="@color/input_bg"
             app:hintTextColor="@color/text_muted"
-            app:helperText="e.g. placement1@rajalakshmi.edu.in"
+            app:helperText="e.g. Placement REC Exe1"
             app:helperTextEnabled="true">
 
             <com.google.android.material.textfield.TextInputEditText

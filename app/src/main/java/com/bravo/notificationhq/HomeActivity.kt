@@ -23,25 +23,31 @@ import java.util.Calendar
  * Shows a real-time summary of the student's academic situation:
  *
  *   1. Greeting line (Good morning / afternoon / evening)
- *   2. Stats bar — Urgent count | Due count | Pending (NOT_STARTED) count
+ *   2. Stats bar — Urgent count | Due count | Pending count
  *   3. Next Due card — the most recent 🟡 DUE notification with a tap to open
  *   4. Recent Activity — last 10 notifications across all sources
  *
- * All data is loaded in a single IO coroutine pass on every onResume
- * so the dashboard always reflects the current state of the DB.
+ * ── Pending count logic ───────────────────────────────────────────────────
  *
- * Bug-fixes applied
- * ─────────────────
- * 1. RACE CONDITION / MID-SCROLL ADAPTER SWAP — loadDashboard() is called on
- *    every onResume.  Without cancellation the previous coroutine can still be
- *    in-flight when the new one finishes, causing two back-to-back
- *    `recyclerRecent.adapter = …` assignments while the user is scrolling,
- *    which crashes RecyclerView or silently corrupts item positions.
- *    Fix: track a [dashboardJob] and cancel it before launching a new one.
+ * A notification is counted as PENDING (exactly once) when:
+ *   • It is DUE-tagged AND status ≠ SUBMITTED      → student still owes it
+ *   • It is NOT DUE-tagged AND status = IN_PROGRESS → student started it
  *
- * 2. CONTEXT / MEMORY LEAK — NotificationAdapter now requires a caller-owned
- *    CoroutineScope.  Pass [lifecycleScope] so DB coroutines inside the
- *    adapter are cancelled when the Activity is destroyed.
+ * This avoids double-counting a DUE-tagged notification that is also
+ * IN_PROGRESS (DUE already contributes 1; promoting it to IN_PROGRESS must
+ * not add another point).  Setting either kind to SUBMITTED removes it from
+ * the count entirely.
+ *
+ * ── Bug fixes applied ─────────────────────────────────────────────────────
+ * 1. RACE CONDITION / MID-SCROLL ADAPTER SWAP — dashboardJob is cancelled
+ *    before every new launch so stale coroutines never race to swap the
+ *    adapter while the user is scrolling.
+ *
+ * 2. CONTEXT / MEMORY LEAK — lifecycleScope is passed to NotificationAdapter
+ *    so its internal DB coroutines are cancelled on Activity destroy.
+ *
+ * 3. NEXT DUE STRING STRIP — only the emoji+keyword prefix is stripped;
+ *    date context embedded in the title is now preserved.
  */
 class HomeActivity : BaseActivity() {
 
@@ -59,7 +65,7 @@ class HomeActivity : BaseActivity() {
     private lateinit var recyclerRecent:    RecyclerView
     private lateinit var layoutRecentEmpty: LinearLayout
 
-    // BUG FIX: Track the active dashboard load so we can cancel it before
+    // BUG FIX 1: Track the active dashboard load so we can cancel it before
     // starting a new one on every onResume, preventing stale coroutines from
     // swapping the adapter mid-scroll.
     private var dashboardJob: Job? = null
@@ -115,11 +121,9 @@ class HomeActivity : BaseActivity() {
     // ─────────────────────────────────────────────────────────────────────
 
     private fun loadDashboard() {
-        // BUG FIX: Cancel any in-flight dashboard load before launching a new
-        // one.  Without this, rapid onResume calls (e.g. returning from
-        // DetailActivity) leave two coroutines racing to call
-        // `recyclerRecent.adapter = …`, which can crash RecyclerView or corrupt
-        // item positions mid-scroll.
+        // BUG FIX 1: Cancel any in-flight dashboard load before launching a
+        // new one. Without this, rapid onResume calls leave two coroutines
+        // racing to call `recyclerRecent.adapter = …`.
         dashboardJob?.cancel()
 
         dashboardJob = lifecycleScope.launch(Dispatchers.IO) {
@@ -136,19 +140,37 @@ class HomeActivity : BaseActivity() {
                 (it.title ?: "").contains("🟡 DUE") || (it.text ?: "").contains("🟡 DUE")
             }
 
-            // Pending = notifications with no status row (default NOT_STARTED)
-            // We count total notifs minus those marked IN_PROGRESS or SUBMITTED
+            // ── Pending count ─────────────────────────────────────────────
+            //
+            // Rule (no double-counting):
+            //   1. DUE-tagged  AND  status ≠ SUBMITTED   → pending (1×)
+            //   2. Non-DUE     AND  status = IN_PROGRESS  → pending (1×)
+            //
+            // A DUE notification that is also IN_PROGRESS is already covered
+            // by rule 1, so rule 2 explicitly excludes DUE-tagged items.
+            // Setting any item to SUBMITTED removes it from pending entirely.
+            //
             val allNotifIds = allNotifs.map { it.id }
-            val allStatuses = if (allNotifIds.isNotEmpty()) {
+            val statusRows  = if (allNotifIds.isNotEmpty()) {
                 db.taskStatusDao().getStatusesForIds(allNotifIds)
             } else emptyList()
 
-            val resolvedIds = allStatuses
-                .filter { it.status != TaskStatusModel.STATUS_NOT_STARTED }
-                .map { it.notifId }
-                .toSet()
+            // Build a fast lookup: notifId → status string
+            val statusByNotifId = statusRows.associate { it.notifId to it.status }
 
-            val pendingCount = allNotifs.count { it.id !in resolvedIds }
+            val pendingCount = allNotifs.count { notif ->
+                val isDue = (notif.title ?: "").contains("🟡 DUE") ||
+                        (notif.text  ?: "").contains("🟡 DUE")
+                val status = statusByNotifId[notif.id] ?: TaskStatusModel.STATUS_NOT_STARTED
+
+                if (isDue) {
+                    // DUE items are pending until the student submits them
+                    status != TaskStatusModel.STATUS_SUBMITTED
+                } else {
+                    // Non-DUE items only become pending once work has started
+                    status == TaskStatusModel.STATUS_IN_PROGRESS
+                }
+            }
 
             // ── Next due item ─────────────────────────────────────────────
             val nextDueNotif = allNotifs.firstOrNull {
@@ -201,14 +223,24 @@ class HomeActivity : BaseActivity() {
         // Course chip — use the source (course name) truncated
         tvDueCourseChip.text = (notif.source ?: "Course").take(20)
 
-        // Title — strip the 🟡 prefix for cleaner display
+        // BUG FIX 3: Strip only the leading "🟡 DUE" keyword token — do NOT
+        // blindly wipe every occurrence of "🟡" or "DUE" in the string, as
+        // those characters may appear inside an embedded date like
+        // "🟡 DUE — Submit by 🟡 Jan 12".  A simple removePrefix on the
+        // trimmed string is sufficient and preserves date context.
         tvDueTitle.text = (notif.title ?: "")
-            .replace("🟡 DUE", "").replace("🟡", "").trim()
+            .trim()
+            .removePrefix("🟡 DUE")
+            .removePrefix("🟡")
+            .trim()
+            .replaceFirstChar { it.uppercaseChar() }   // re-capitalise if needed
 
-        // Body — first two lines of the message
-        val cleanBody = (notif.text ?: "")
-            .replace("🟡 DUE", "").replace("🟡", "").trim()
-        tvDueBody.text = cleanBody
+        // Body — same safe strip: only the leading label, not mid-string emojis
+        tvDueBody.text = (notif.text ?: "")
+            .trim()
+            .removePrefix("🟡 DUE")
+            .removePrefix("🟡")
+            .trim()
 
         // Tap → open the course feed for this notification's source
         cardNextDue.setOnClickListener {
@@ -238,17 +270,15 @@ class HomeActivity : BaseActivity() {
         recyclerRecent.visibility    = View.VISIBLE
         layoutRecentEmpty.visibility = View.GONE
 
-        // BUG FIX: Pass lifecycleScope so the adapter's internal DB coroutines
-        // (status cycle, delete) are tied to this Activity's lifecycle and
-        // automatically cancelled on destroy, preventing context leaks.
+        // BUG FIX 2: Pass lifecycleScope so the adapter's internal DB
+        // coroutines (status cycle, delete) are tied to this Activity's
+        // lifecycle and automatically cancelled on destroy.
         recyclerRecent.adapter = NotificationAdapter(
             notifications = notifications,
             statusMap     = statusMap,
             scope         = lifecycleScope,
             onListChanged = {
                 // Reload dashboard after a delete from the recent list.
-                // dashboardJob?.cancel() inside loadDashboard() prevents the
-                // now-stale previous load from racing with this reload.
                 loadDashboard()
             }
         )

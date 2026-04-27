@@ -108,6 +108,13 @@ class NptelActivity : BaseActivity() {
                     val db = AppDatabase.getDatabase(this@NptelActivity)
                     db.nptelChannelDao().deleteChannel(channel)
                     db.notificationDao().deleteNotificationsForCourse(channel.label)
+                    // FIX: Also purge task_status_table rows whose parent
+                    // notifications just got deleted.  Without this, orphaned
+                    // status rows accumulate and inflate the dashboard's pending
+                    // count because loadDashboard() joins notifications with
+                    // statuses — deleted notifications are gone but their status
+                    // rows still match the IN_PROGRESS / NOT_STARTED filter.
+                    db.taskStatusDao().deleteStatusesForCourse(channel.label)
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(

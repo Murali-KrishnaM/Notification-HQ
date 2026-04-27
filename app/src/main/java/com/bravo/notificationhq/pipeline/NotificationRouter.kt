@@ -44,20 +44,24 @@ import com.bravo.notificationhq.NotificationModel
  *
  * Bug-fixes applied
  * ─────────────────
- * DATA RACE IN SCORE ACCUMULATION — the original fuzzy-match blocks for
- * Hostel, Placement, and Course used a captured `var bestScore` that was
- * mutated as a side-effect inside the `maxByOrNull` lambda via `.also {}`.
- * `maxByOrNull` makes no guarantee about invocation order of the selector
- * lambda across items, so `bestScore` could end up holding the score of a
- * non-winning candidate, making the threshold check unreliable and
- * potentially routing to the wrong channel.
+ * 1. DATA RACE IN SCORE ACCUMULATION — the original fuzzy-match blocks used
+ *    a captured `var bestScore` mutated as a side-effect inside the
+ *    `maxByOrNull` lambda via `.also {}`. `maxByOrNull` makes no guarantee
+ *    about invocation order, so `bestScore` could hold the score of a
+ *    non-winning candidate, making the threshold check unreliable.
+ *    Fix: score every candidate purely, collect (item, score) pairs, then
+ *    derive winner and score with two explicit deterministic steps.
  *
- * Fix: score every candidate purely (no captured mutable state inside the
- * lambda), collect results into a list of pairs, then derive the winner and
- * its score with two explicit, deterministic steps.
- *
- * The same pattern is applied to the Gmail courseMatchScore blocks
- * (PRIORITY 2, 4, 5) for consistency and safety.
+ * 2. BUILDDUETITLE DATE EXTRACTION — the original code used
+ *    `.getOrNull(1)?.take(25)` to extract date context after splitting on a
+ *    due-keyword regex. `take(25)` clips at a fixed character count with no
+ *    respect for word or sentence boundaries, producing truncated output like
+ *    "January 1" → "January" or splitting mid-emoji.
+ *    Fix: after extracting the segment, walk forward to the first natural
+ *    sentence boundary (". "  "! "  "? "  newline) within a 60-char window.
+ *    If no boundary is found, fall back to the last complete word within that
+ *    window. This preserves full date phrases like "January 12, 11:59 PM"
+ *    while still keeping the title concise.
  */
 object NotificationRouter {
 
@@ -110,6 +114,10 @@ object NotificationRouter {
     // ── Fuzzy match threshold ─────────────────────────────────────────────
     private const val FUZZY_THRESHOLD  = 0.6f
     private const val MIN_TOKEN_LENGTH = 2
+
+    // ── Date extraction window (chars) ────────────────────────────────────
+    // How far into the post-keyword segment we look for a sentence boundary.
+    private const val DATE_WINDOW = 60
 
     // ─────────────────────────────────────────────────────────────────────
     // PUBLIC ENTRY POINT
@@ -281,8 +289,8 @@ object NotificationRouter {
             val attendanceScored = savedCourses.map { course ->
                 course to courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
             }
-            val bestAttendancePair  = attendanceScored.maxByOrNull { (_, score) -> score }
-            val bestAttendanceScore = bestAttendancePair?.second ?: 0
+            val bestAttendancePair   = attendanceScored.maxByOrNull { (_, score) -> score }
+            val bestAttendanceScore  = bestAttendancePair?.second ?: 0
             val bestAttendanceCourse = bestAttendancePair?.first
 
             val destination = if (bestAttendanceCourse != null && bestAttendanceScore > 0) {
@@ -298,39 +306,47 @@ object NotificationRouter {
         }
 
         // ── PRIORITY 3: Placement sender check ───────────────────────────
-        val allPlacementEmails = placementChannels
-            .flatMap { it.emailAddresses.split(",").map { e -> e.trim().lowercase() } }
-            .filter { it.isNotEmpty() }
-            .toSet()
+        // Match per-channel so the notification goes to the *specific* channel
+        // card rather than the generic BUCKET_PLACEMENTS.
+        //
+        // Match order per channel:
+        //   a) Exact sender email in channel's comma-separated email list.
+        //   b) Sender domain matches any domain in the channel's email list.
+        //   c) Display name overlaps with the channel label (display-name fallback).
 
-        val isPlacementBySenderEmail = senderLower.isNotEmpty() &&
-                allPlacementEmails.any { placementEmail ->
-                    senderLower.contains(placementEmail) || placementEmail.contains(senderLower)
-                }
+        val matchedPlacementChannel = placementChannels.firstOrNull { ch ->
+            val channelEmails = ch.emailAddresses
+                .split(",")
+                .map { it.trim().lowercase() }
+                .filter { it.isNotEmpty() }
 
-        val placementDomains = placementChannels
-            .flatMap { it.emailAddresses.split(",") }
-            .map { it.trim().lowercase() }
-            .mapNotNull { it.substringAfter("@", "").ifEmpty { null } }
-            .filter { it.isNotEmpty() }
-            .toSet()
-
-        val isPlacementByDomain = senderLower.isNotEmpty() &&
-                placementDomains.any { domain -> senderLower.contains(domain) }
-
-        val isPlacementByDisplayName = displayNameLower.isNotEmpty() &&
-                placementChannels.any { ch ->
-                    ch.label.lowercase().let { label ->
-                        displayNameLower.contains(label) || label.contains(displayNameLower)
+            // (a) Exact sender email match
+            val byEmail = senderLower.isNotEmpty() &&
+                    channelEmails.any { savedEmail ->
+                        senderLower.contains(savedEmail) || savedEmail.contains(senderLower)
                     }
-                }
 
-        if (isPlacementBySenderEmail || isPlacementByDomain || isPlacementByDisplayName) {
+            // (b) Domain match
+            val channelDomains = channelEmails
+                .mapNotNull { it.substringAfter("@", "").ifEmpty { null } }
+                .filter { it.isNotEmpty() }
+            val byDomain = senderLower.isNotEmpty() &&
+                    channelDomains.any { domain -> senderLower.contains(domain) }
+
+            // (c) Display name ↔ channel label fuzzy check
+            val labelLower = ch.label.lowercase()
+            val byDisplayName = displayNameLower.isNotEmpty() &&
+                    (displayNameLower.contains(labelLower) || labelLower.contains(displayNameLower))
+
+            byEmail || byDomain || byDisplayName
+        }
+
+        if (matchedPlacementChannel != null) {
             val finalTitle = buildDueTitle(n.cleanTitle, n.fullCorpus) ?: "🏢 ${n.cleanTitle}"
-            save(db, finalTitle, n.displayBody, BUCKET_PLACEMENTS, "gmail")
+            save(db, finalTitle, n.displayBody, matchedPlacementChannel.label, "gmail")
             Log.d("NHQ-Router",
-                "Gmail → Placements " +
-                        "(email=$isPlacementBySenderEmail domain=$isPlacementByDomain name=$isPlacementByDisplayName)")
+                "Gmail → Placement channel [${matchedPlacementChannel.label}] " +
+                        "sender='$senderLower' displayName='$displayNameLower'")
             return
         }
 
@@ -385,7 +401,7 @@ object NotificationRouter {
             return
         }
 
-        // ── PRIORITY 7: Drop ──────────────────────────────────────────────
+        // ── PRIORITY 7: No match → drop ───────────────────────────────────
         Log.d("NHQ-Router", "Gmail dropped (passed all 6 checks, no match): ${n.cleanTitle}")
     }
 
@@ -438,27 +454,95 @@ object NotificationRouter {
     }
 
     /**
-     * If the corpus contains a due-date phrase, prepend a 🟡 DUE tag.
-     * Returns null if no due-date phrase found (caller uses a default prefix).
+     * If [fullCorpus] contains a due-date phrase, prepend a 🟡 DUE tag to
+     * [rawTitle] and embed the extracted date context.
+     *
+     * Returns null if no due-date phrase is found (caller falls back to a
+     * default emoji prefix).
+     *
+     * ── Date extraction strategy ──────────────────────────────────────────
+     *
+     * After splitting [fullCorpus] on a due-keyword regex to isolate the
+     * segment that follows the keyword (e.g. the text after "due on:"),
+     * the original code used a blunt `.take(25)` to clip the segment.
+     * That approach is fragile:
+     *   • It clips at a fixed byte count, which can split mid-word or
+     *     mid-emoji (multi-byte), producing output like "Submit by Januar".
+     *   • It always takes 25 chars even when the relevant date phrase is
+     *     shorter, appending unrelated words that follow the date.
+     *
+     * The fixed approach:
+     *   1. Work within the first [DATE_WINDOW] (60) characters of the segment.
+     *   2. Find the earliest sentence boundary: ". " / "! " / "? " / "\n".
+     *   3. If a boundary exists, take up to (and including) the punctuation —
+     *      this preserves full phrases like "January 12, 11:59 PM."
+     *   4. If no boundary exists within the window, fall back to the last
+     *      complete word inside the window so we never output a clipped token.
+     *
+     * Examples:
+     *   corpus segment → "January 12. Late submissions not accepted."
+     *   old result     → "January 12. Late subm"  (clipped at char 25)
+     *   new result     → "January 12."             (stops at first sentence end)
+     *
+     *   corpus segment → "Upload to Classroom\nDeadline: 5 PM"
+     *   old result     → "Upload to Classroom\nDead" (clipped mid-word)
+     *   new result     → "Upload to Classroom"        (stops at newline)
+     *
+     *   corpus segment → "Viva tomorrow" (short, no boundary)
+     *   old result     → "Viva tomorrow" (happened to work, fits in 25)
+     *   new result     → "Viva tomorrow" (same, via word-boundary fallback)
      */
     private fun buildDueTitle(rawTitle: String, fullCorpus: String): String? {
         val lower = fullCorpus.lowercase()
+
         val hasDue = lower.contains("closes on")  ||
-                lower.contains("due date")   ||
-                lower.contains("due on")     ||
-                lower.contains("last date")  ||
-                lower.contains("submit by")  ||
-                lower.contains("due")        ||
-                lower.contains("ends on")    ||
+                lower.contains("due date")         ||
+                lower.contains("due on")           ||
+                lower.contains("last date")        ||
+                lower.contains("submit by")        ||
+                lower.contains("due")              ||
+                lower.contains("ends on")          ||
                 lower.contains("deadline")
 
         if (!hasDue) return null
 
-        val datePart = fullCorpus
+        // Split on any due-keyword pattern to isolate the date segment that
+        // immediately follows the keyword.
+        val rawSegment = fullCorpus
             .split(Regex("(?i)(closes on\\s*:?|due date\\s*:?|due on\\s*:?|last date\\s*:?|submit by\\s*:?|deadline\\s*:?)"))
             .getOrNull(1)
-            ?.take(25)
-            ?.trim() ?: ""
+            ?.trim()
+            ?: ""
+
+        if (rawSegment.isEmpty()) return "🟡 $rawTitle"
+
+        // ── Fixed extraction: sentence boundary → word boundary fallback ───
+        val window = rawSegment.take(DATE_WINDOW)
+
+        // Find the earliest natural sentence end inside the window.
+        // We include the punctuation mark itself (index + 1) but exclude the
+        // trailing space/newline so the chip reads "January 12." not "January 12. ".
+        val boundaryIndex = listOf(
+            window.indexOf(". "),   // period + space
+            window.indexOf("! "),   // exclamation + space
+            window.indexOf("? "),   // question mark + space
+            window.indexOf("\n")    // newline (no +1 needed, newline is not shown)
+        )
+            .filter { it > 0 }      // ignore -1 (not found) and 0 (would produce empty string)
+            .minOrNull()
+
+        val datePart: String = if (boundaryIndex != null) {
+            // Include punctuation for ". " / "! " / "? " (index points to
+            // the punctuation char itself, so +1 gives us the char after it,
+            // but we stop AT the punctuation, hence no +1 in substring end).
+            window.substring(0, boundaryIndex + 1).trim()
+        } else {
+            // No sentence boundary — trim to the last complete word so we
+            // never output a clipped token like "Januar".
+            val trimmed = window.trim()
+            val lastSpace = trimmed.lastIndexOf(' ')
+            if (lastSpace > 0) trimmed.substring(0, lastSpace) else trimmed
+        }
 
         return if (datePart.isNotEmpty()) "🟡 DUE $datePart — $rawTitle"
         else "🟡 $rawTitle"

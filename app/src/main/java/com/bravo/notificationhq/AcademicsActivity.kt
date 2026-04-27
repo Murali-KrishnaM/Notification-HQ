@@ -20,8 +20,6 @@ import kotlinx.coroutines.withContext
 
 /**
  * Displays the list of academic courses and handles add/edit/delete.
- * This is the course-list logic that previously lived in MainActivity,
- * now extracted into its own Activity for the bottom-nav architecture.
  */
 class AcademicsActivity : BaseActivity() {
 
@@ -90,7 +88,24 @@ class AcademicsActivity : BaseActivity() {
                 courses         = courses,
                 notifCounts     = notifCounts,
                 onItemClick     = { course -> openDetailActivity(course) },
-                onItemLongClick = { course -> if (course.id > 0) showCourseOptionsSheet(course) }
+                onItemLongClick = { course ->
+                    // FIX: The original code silently ignored long-presses on
+                    // courses whose id == 0 (i.e. not yet persisted to Room —
+                    // this can happen if a CourseModel is constructed locally
+                    // without going through the DAO).  Silent no-ops are
+                    // confusing UX.  We now show a toast so the user knows why
+                    // nothing happened instead of wondering if the gesture
+                    // registered at all.
+                    if (course.id > 0) {
+                        showCourseOptionsSheet(course)
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "This course isn't saved yet — try again in a moment.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             )
         }
     }

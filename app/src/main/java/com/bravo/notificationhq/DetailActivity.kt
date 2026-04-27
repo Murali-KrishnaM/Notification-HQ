@@ -17,6 +17,15 @@ class DetailActivity : AppCompatActivity() {
     private lateinit var recyclerView:     RecyclerView
     private lateinit var layoutEmptyState: LinearLayout
 
+    // FIX: Promoted from a local val inside onCreate to a class-level
+    // lateinit var.  The previous code called findViewById(R.id.tvDetailSubtitle)
+    // a second time inside the coroutine's withContext(Main) lambda — that
+    // lookup happens on the right thread, but if the Activity is finishing
+    // the view tree may already be detached, producing a silent null dereference.
+    // Binding it once in onCreate and reusing the reference everywhere is both
+    // safer and avoids repeated traversal of the view tree.
+    private lateinit var tvSubtitle: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_detail)
@@ -24,8 +33,8 @@ class DetailActivity : AppCompatActivity() {
         val courseName   = intent.getStringExtra("COURSE_NAME")   ?: "Unknown Subject"
         val courseSymbol = intent.getStringExtra("COURSE_SYMBOL") ?: ""
 
-        val tvTitle    = findViewById<TextView>(R.id.tvDetailTitle)
-        val tvSubtitle = findViewById<TextView>(R.id.tvDetailSubtitle)
+        val tvTitle      = findViewById<TextView>(R.id.tvDetailTitle)
+        tvSubtitle       = findViewById(R.id.tvDetailSubtitle)          // bound once, reused everywhere
         recyclerView     = findViewById(R.id.recyclerViewDetail)
         layoutEmptyState = findViewById(R.id.layoutDetailEmptyState)
 
@@ -42,8 +51,6 @@ class DetailActivity : AppCompatActivity() {
     // ─────────────────────────────────────────────────────────────────────
 
     private fun loadNotifications(courseName: String, courseSymbol: String) {
-        val tvSubtitle = findViewById<TextView>(R.id.tvDetailSubtitle)
-
         lifecycleScope.launch(Dispatchers.IO) {
             val db            = AppDatabase.getDatabase(this@DetailActivity)
             val notifications = db.notificationDao()
@@ -65,7 +72,7 @@ class DetailActivity : AppCompatActivity() {
                 .toMutableMap()
 
             withContext(Dispatchers.Main) {
-                renderList(notifications, statusMap, courseSymbol, tvSubtitle)
+                renderList(notifications, statusMap, courseSymbol)
             }
         }
     }
@@ -78,8 +85,7 @@ class DetailActivity : AppCompatActivity() {
     private fun renderList(
         notifications: MutableList<NotificationModel>,
         statusMap: MutableMap<Int, String>,
-        courseSymbol: String,
-        tvSubtitle: TextView
+        courseSymbol: String
     ) {
         if (notifications.isEmpty()) {
             recyclerView.visibility     = View.GONE
@@ -93,15 +99,11 @@ class DetailActivity : AppCompatActivity() {
             tvSubtitle.text = "$count notification${if (count == 1) "" else "s"}" +
                     if (courseSymbol.isNotEmpty()) " · $courseSymbol" else ""
 
-            // BUG FIX: Pass lifecycleScope so the adapter's coroutines are
-            // bound to this Activity's lifecycle and cancelled on destroy,
-            // preventing context leaks from long-running DB operations.
             recyclerView.adapter = NotificationAdapter(
                 notifications = notifications,
                 statusMap     = statusMap,
                 scope         = lifecycleScope,
                 onListChanged = {
-                    // Called by adapter after a delete — check if list is now empty
                     if (notifications.isEmpty()) {
                         recyclerView.visibility     = View.GONE
                         layoutEmptyState.visibility = View.VISIBLE
