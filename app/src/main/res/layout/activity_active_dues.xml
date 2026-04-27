@@ -1,6 +1,125 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-             android:layout_width="match_parent"
-             android:layout_height="match_parent">
+<androidx.constraintlayout.widget.ConstraintLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg_deep">
+
+    <View
+            android:layout_width="0dp"
+            android:layout_height="2dp"
+            android:background="@drawable/glow_line_amber"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+            android:id="@+id/headerBar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/header_glass_amber_bg"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="52dp"
+            android:paddingBottom="20dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="UPCOMING DEADLINES"
+                android:textColor="@color/accent_amber"
+                android:textSize="10sp"
+                android:letterSpacing="0.25"
+                android:fontFamily="@font/mono_font"
+                android:alpha="0.85" />
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Active Dues"
+                android:textColor="@color/text_primary"
+                android:textSize="30sp"
+                android:fontFamily="@font/display_font"
+                android:layout_marginTop="2dp" />
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Your pending tasks across all courses, sorted by deadline."
+                android:textColor="@color/text_muted"
+                android:textSize="13sp"
+                android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+    <View
+            android:id="@+id/headerDivider"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:background="@color/divider_color"
+            app:layout_constraintTop_toBottomOf="@id/headerBar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/headerDivider"
+            app:layout_constraintBottom_toTopOf="@id/bottomNavInclude"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerViewActiveDues"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingTop="10dp"
+                android:paddingBottom="20dp" />
+
+        <LinearLayout
+                android:id="@+id/layoutDuesEmptyState"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="✅"
+                    android:textSize="48sp"
+                    android:alpha="0.8" />
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="All caught up!"
+                    android:textSize="20sp"
+                    android:fontFamily="@font/display_font"
+                    android:textColor="@color/text_primary" />
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="No upcoming deadlines detected."
+                    android:textSize="13sp"
+                    android:textColor="@color/text_muted"
+                    android:gravity="center" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <include
+            android:id="@+id/bottomNavInclude"
+            layout="@layout/nav_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -181,15 +181,40 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <TextView
-                    android:layout_width="wrap_content"
+            <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="NEXT DUE"
-                    android:textSize="10sp"
-                    android:letterSpacing="0.2"
-                    android:fontFamily="@font/mono_font"
-                    android:textColor="@color/text_hint"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+
+                <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="NEXT DUE"
+                        android:textSize="10sp"
+                        android:letterSpacing="0.2"
+                        android:fontFamily="@font/mono_font"
+                        android:textColor="@color/text_hint" />
+
+                <TextView
+                        android:id="@+id/btnViewAllDues"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="VIEW ALL →"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.1"
+                        android:fontFamily="@font/mono_font"
+                        android:textColor="@color/accent_amber"
+                        android:paddingStart="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true" />
+            </LinearLayout>
 
             <LinearLayout
                     android:id="@+id/cardNextDue"

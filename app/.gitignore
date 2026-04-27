@@ -1,11 +1,20 @@
-/build
-build/
-/local.properties
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-*.iml
+# Gradle files
 .gradle/
+build/
+
+# Local configuration file (for SDK path and API keys)
+local.properties
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# OS files
+.DS_Store
+Thumbs.db

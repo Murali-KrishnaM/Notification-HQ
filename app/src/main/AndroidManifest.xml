@@ -27,6 +27,7 @@
         <activity android:name=".PlacementsActivity" />
         <activity android:name=".HostelActivity" />
         <activity android:name=".NptelActivity" />
+        <activity android:name=".ActiveDuesActivity" />
 
         <activity android:name=".DetailActivity" android:exported="false" />
         <activity android:name=".FullNotificationActivity" />
