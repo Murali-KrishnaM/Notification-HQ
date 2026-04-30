@@ -61,7 +61,7 @@ object NotificationPipeline {
             // ── STAGE 3: Route & Save ─────────────────────────────────────
             // Decide which bucket/course this belongs to and persist it.
             val db = AppDatabase.getDatabase(context)
-            NotificationRouter.route(db, denoised)
+            NotificationRouter.route(context, db, denoised)
 
         } catch (e: Exception) {
             Log.e(TAG, "Unhandled exception in pipeline: ${e.message}", e)

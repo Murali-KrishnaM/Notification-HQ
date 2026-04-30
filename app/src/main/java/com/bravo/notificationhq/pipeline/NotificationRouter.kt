@@ -2,200 +2,82 @@ package com.bravo.notificationhq.pipeline
 
 import android.util.Log
 import com.bravo.notificationhq.AppDatabase
+import com.bravo.notificationhq.DashboardWidgetProvider
 import com.bravo.notificationhq.NotificationModel
 import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/**
- * ══════════════════════════════════════════════════════════════════════════
- * MODULE 3 — NOTIFICATION ROUTER
- * ══════════════════════════════════════════════════════════════════════════
- *
- * Responsibility:
- * - Decide exactly which bucket a [DenoisedNotification] belongs to.
- * - Persist the result via [AppDatabase].
- *
- * ── ROUTING RULES ─────────────────────────────────────────────────────────
- *
- * WHATSAPP:
- * 1. Tag message with 🔴 URGENT if urgency keywords detected.
- * 2. Exact substring match → Placements / Courses / Hostel.
- * 3. Fuzzy match (≥ 60% token overlap) → Placements / Courses / Hostel.
- * 4. No match → DROP silently.
- *
- * GMAIL — Strict academic filtering (Personal emails are DROPPED):
- * 0. GATEKEEPER: Drop if it lacks academic/urgent/NPTEL keywords AND
- * isn't from Classroom/Placements. (Throws away personal emails).
- * 1. NPTEL keyword/sender scan → 📚 NPTEL.
- * 2. Tag 🔴 URGENT if attendance or urgency keywords are found.
- * 3. Placement sender check → 🏢 Placements.
- * 4. Google Classroom origin → Best Course Match or 📘 Important Emails.
- * 5. Academic course score match → Best Course Match.
- * 6. Generic academic fallback → 📧 Important Emails.
- */
 object NotificationRouter {
 
-    // ── System bucket names ───────────────────────────────────────────────
     const val BUCKET_IMPORTANT_EMAILS  = "📧 Important Emails"
     const val BUCKET_NPTEL             = "📚 NPTEL"
     const val BUCKET_PLACEMENTS        = "🏢 Placements"
     const val BUCKET_HOSTEL            = "🏠 Hostel"
 
-    // ── NPTEL detection keywords ──────────────────────────────────────────
-    private val NPTEL_KEYWORDS = listOf(
-        "nptel", "swayam", "nptel.iitm.ac.in", "onlinecourses.nptel.ac.in",
-        "nptel online", "nptel course", "week deadline", "assignment deadline",
-        "iit madras", "iitm online", "nptel assignment"
-    )
-
-    // ── Attendance keywords ───────────────────────────────────────────────
-    private val ATTENDANCE_KEYWORDS = listOf(
-        "attendance", "absent", "absentee", "proxy", "attendance report",
-        "attendance shortage", "attendance alert", "marked absent",
-        "below 75", "detain", "detained", "shortage of attendance"
-    )
-
-    // ── Urgency keywords (Applies to both WA and Gmail) ───────────────────
-    private val URGENT_KEYWORDS = listOf(
-        "room change", "room no", "cancel", "cancelled",
-        "rescheduled", "postponed", "urgent", "important",
-        "moved to", "shifted to", "no class", "holiday",
-        "venue", "come", "class", "go", "last", "final"
-    )
-
-    // ── Generic academic keywords (Gmail fallback & gatekeeper) ───────────
-    private val ACADEMIC_KEYWORDS = listOf(
-        // Original
-        "quiz", "deadline", "assignment", "notes", "resource",
-        "submission", "exam", "test", "project", "review",
-        "lab", "viva", "internal", "closes on", "due date",
-        "class cancelled", "marks", "grade", "result",
-        "timetable", "schedule", "google classroom", "classroom.google",
-        "syllabus", "lecture", "seminar", "workshop", "hall ticket",
-        "admit card", "faculty", "hod", "principal", "fee", "tuition",
-        "registration", "enrollment", "cgpa", "sgpa", "gpa", "transcript",
-        "scholarship", "internship", "hackathon",
-        // REINFORCED PLACEMENT KEYWORDS
-        "interview", "technical round", "hr round", "group discussion",
-        "aptitude", "assessment", "placement", "drive", "shortlist"
-    )
-
-    // ── Google Classroom email origins ────────────────────────────────────
-    private val CLASSROOM_SENDER_PATTERNS = listOf(
-        "classroom.google.com",
-        "classroom-noreply@google.com",
-        "noreply-diffs@google.com",
-        "googleclassroom"
-    )
-
-    // ── Fuzzy match threshold ─────────────────────────────────────────────
+    private val NPTEL_KEYWORDS = listOf("nptel", "swayam", "nptel.iitm.ac.in", "onlinecourses.nptel.ac.in", "nptel online", "nptel course", "week deadline", "assignment deadline", "iit madras", "iitm online", "nptel assignment")
+    private val ATTENDANCE_KEYWORDS = listOf("attendance", "absent", "absentee", "proxy", "attendance report", "attendance shortage", "attendance alert", "marked absent", "below 75", "detain", "detained", "shortage of attendance")
+    private val URGENT_KEYWORDS = listOf("room change", "room no", "cancel", "cancelled", "rescheduled", "postponed", "urgent", "important", "moved to", "shifted to", "no class", "holiday", "venue", "come", "class", "go", "last", "final")
+    private val ACADEMIC_KEYWORDS = listOf("quiz", "deadline", "assignment", "notes", "resource", "submission", "exam", "test", "project", "review", "lab", "viva", "internal", "closes on", "due date", "class cancelled", "marks", "grade", "result", "timetable", "schedule", "google classroom", "classroom.google", "syllabus", "lecture", "seminar", "workshop", "hall ticket", "admit card", "faculty", "hod", "principal", "fee", "tuition", "registration", "enrollment", "cgpa", "sgpa", "gpa", "transcript", "scholarship", "internship", "hackathon", "interview", "technical round", "hr round", "group discussion", "aptitude", "assessment", "placement", "drive", "shortlist")
+    private val CLASSROOM_SENDER_PATTERNS = listOf("classroom.google.com", "classroom-noreply@google.com", "noreply-diffs@google.com", "googleclassroom")
     private const val FUZZY_THRESHOLD  = 0.6f
     private const val MIN_TOKEN_LENGTH = 2
-
-    // ── Date extraction window (chars) ────────────────────────────────────
     private const val DATE_WINDOW = 60
 
-    // ─────────────────────────────────────────────────────────────────────
-    // PUBLIC ENTRY POINT
-    // ─────────────────────────────────────────────────────────────────────
-
-    suspend fun route(db: AppDatabase, denoised: DenoisedNotification) {
+    // 🟢 ADDED CONTEXT REQUIREMENT HERE
+    suspend fun route(context: android.content.Context, db: AppDatabase, denoised: DenoisedNotification) {
         when {
-            denoised.packageName == "com.whatsapp" ||
-                    denoised.packageName == "com.whatsapp.w4b" ->
-                routeWhatsApp(db, denoised)
-
-            denoised.packageName == "com.google.android.gm" ->
-                routeGmail(db, denoised)
-
+            denoised.packageName == "com.whatsapp" || denoised.packageName == "com.whatsapp.w4b" -> routeWhatsApp(context, db, denoised)
+            denoised.packageName == "com.google.android.gm" -> routeGmail(context, db, denoised)
             else -> Log.d("NHQ-Router", "Unknown package dropped: ${denoised.packageName}")
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // WHATSAPP ROUTER
-    // ─────────────────────────────────────────────────────────────────────
-
-    private suspend fun routeWhatsApp(db: AppDatabase, n: DenoisedNotification) {
+    private suspend fun routeWhatsApp(context: android.content.Context, db: AppDatabase, n: DenoisedNotification) {
         val savedCourses      = db.courseDao().getAllCourses()
         val placementChannels = db.placementChannelDao().getAllChannels()
         val hostelChannels    = db.hostelChannelDao().getAllChannels()
 
         var finalTitle = n.cleanTitle
-        if (URGENT_KEYWORDS.any { n.searchLower.contains(it) }) {
-            finalTitle = "🔴 URGENT: $finalTitle"
-        }
-
+        if (URGENT_KEYWORDS.any { n.searchLower.contains(it) }) finalTitle = "🔴 URGENT: $finalTitle"
         val titleLower = finalTitle.lowercase()
 
-        // ── PASS 1: Exact substring match ─────────────────────────────────
         for (channel in hostelChannels) {
             val wGroup = channel.whatsappGroupName?.trim()?.lowercase() ?: continue
-            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) {
-                save(db, finalTitle, n.displayBody, channel.label, "whatsapp")
-                return
-            }
+            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) return saveAndTag(context, db, finalTitle, n.displayBody, channel.label, "whatsapp", n.fullCorpus)
         }
         for (channel in placementChannels) {
             val wGroup = channel.whatsappGroupName?.trim()?.lowercase() ?: continue
-            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) {
-                save(db, finalTitle, n.displayBody, channel.label, "whatsapp")
-                return
-            }
+            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) return saveAndTag(context, db, finalTitle, n.displayBody, channel.label, "whatsapp", n.fullCorpus)
         }
         for (course in savedCourses) {
             val wGroup = course.whatsappGroupName?.trim()?.lowercase() ?: continue
-            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) {
-                save(db, finalTitle, n.displayBody, course.courseName, "whatsapp")
-                return
-            }
+            if (wGroup.isNotEmpty() && titleLower.contains(wGroup)) return saveAndTag(context, db, finalTitle, n.displayBody, course.courseName, "whatsapp", n.fullCorpus)
         }
 
-        // ── PASS 2: Fuzzy match ───────────────────────────────────────────
-        val hostelScored = hostelChannels
-            .filter { !it.whatsappGroupName.isNullOrBlank() }
-            .map { ch -> ch to fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower) }
+        val hostelScored = hostelChannels.filter { !it.whatsappGroupName.isNullOrBlank() }.map { ch -> ch to fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower) }
         val bestHostelPair = hostelScored.maxByOrNull { (_, score) -> score }
-        if (bestHostelPair != null && bestHostelPair.second >= FUZZY_THRESHOLD) {
-            save(db, finalTitle, n.displayBody, bestHostelPair.first.label, "whatsapp")
-            return
-        }
+        if (bestHostelPair != null && bestHostelPair.second >= FUZZY_THRESHOLD) return saveAndTag(context, db, finalTitle, n.displayBody, bestHostelPair.first.label, "whatsapp", n.fullCorpus)
 
-        val placementScored = placementChannels
-            .filter { !it.whatsappGroupName.isNullOrBlank() }
-            .map { ch -> ch to fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower) }
+        val placementScored = placementChannels.filter { !it.whatsappGroupName.isNullOrBlank() }.map { ch -> ch to fuzzyScore(ch.whatsappGroupName!!.lowercase(), titleLower) }
         val bestPlacementPair = placementScored.maxByOrNull { (_, score) -> score }
-        if (bestPlacementPair != null && bestPlacementPair.second >= FUZZY_THRESHOLD) {
-            save(db, finalTitle, n.displayBody, bestPlacementPair.first.label, "whatsapp")
-            return
-        }
+        if (bestPlacementPair != null && bestPlacementPair.second >= FUZZY_THRESHOLD) return saveAndTag(context, db, finalTitle, n.displayBody, bestPlacementPair.first.label, "whatsapp", n.fullCorpus)
 
-        val courseScored = savedCourses
-            .filter { !it.whatsappGroupName.isNullOrBlank() }
-            .map { course -> course to fuzzyScore(course.whatsappGroupName!!.lowercase(), titleLower) }
+        val courseScored = savedCourses.filter { !it.whatsappGroupName.isNullOrBlank() }.map { c -> c to fuzzyScore(c.whatsappGroupName!!.lowercase(), titleLower) }
         val bestCoursePair = courseScored.maxByOrNull { (_, score) -> score }
-        if (bestCoursePair != null && bestCoursePair.second >= FUZZY_THRESHOLD) {
-            save(db, finalTitle, n.displayBody, bestCoursePair.first.courseName, "whatsapp")
-            return
-        }
+        if (bestCoursePair != null && bestCoursePair.second >= FUZZY_THRESHOLD) return saveAndTag(context, db, finalTitle, n.displayBody, bestCoursePair.first.courseName, "whatsapp", n.fullCorpus)
 
-        Log.d("NHQ-Router", "WA dropped (no match): $finalTitle")
+        Log.d("NHQ-Router", "WhatsApp dropped (no group match): ${n.cleanTitle}")
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // GMAIL ROUTER
-    // ─────────────────────────────────────────────────────────────────────
-
-    private suspend fun routeGmail(db: AppDatabase, n: DenoisedNotification) {
+    private suspend fun routeGmail(context: android.content.Context, db: AppDatabase, n: DenoisedNotification) {
         val savedCourses      = db.courseDao().getAllCourses()
         val placementChannels = db.placementChannelDao().getAllChannels()
         val nptelChannels     = db.nptelChannelDao().getAllChannels()
 
-        val senderLower      = n.senderEmail.lowercase()
-        val displayNameLower = n.senderDisplayName.lowercase()
+        val senderLower      = n.senderEmail?.lowercase() ?: ""
+        val displayNameLower = n.senderDisplayName?.lowercase() ?: ""
 
-        // ── Check Triggers ────────────────────────────────────────────────
         val isNptelText       = NPTEL_KEYWORDS.any { n.searchLower.contains(it) }
         val isAttendance      = ATTENDANCE_KEYWORDS.any { n.searchLower.contains(it) }
         val isUrgentText      = URGENT_KEYWORDS.any { n.searchLower.contains(it) }
@@ -203,12 +85,7 @@ object NotificationRouter {
         val isClassroomOrigin = CLASSROOM_SENDER_PATTERNS.any { senderLower.contains(it) || n.searchLower.contains(it) }
         val isUrgentOverall   = isAttendance || isUrgentText
 
-        // Sender match lookups
-        val matchedNptelChannel = nptelChannels.firstOrNull { ch ->
-            ch.emailAddresses.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
-                .any { savedEmail -> senderLower.isNotEmpty() && (senderLower.contains(savedEmail) || savedEmail.contains(senderLower)) }
-        }
-
+        val matchedNptelChannel = nptelChannels.firstOrNull { ch -> ch.emailAddresses.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }.any { savedEmail -> senderLower.isNotEmpty() && (senderLower.contains(savedEmail) || savedEmail.contains(senderLower)) } }
         val matchedPlacementChannel = placementChannels.firstOrNull { ch ->
             val channelEmails = ch.emailAddresses.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
             val byEmail = senderLower.isNotEmpty() && channelEmails.any { senderLower.contains(it) || it.contains(senderLower) }
@@ -219,66 +96,65 @@ object NotificationRouter {
             byEmail || byDomain || byDisplayName
         }
 
-        // ── GATEKEEPER: Drop personal/irrelevant emails ───────────────────
-        val isRelevant = isNptelText || matchedNptelChannel != null ||
-                isUrgentOverall || isAcademicText || isClassroomOrigin ||
-                matchedPlacementChannel != null
-
+        val isRelevant = isNptelText || matchedNptelChannel != null || isUrgentOverall || isAcademicText || isClassroomOrigin || matchedPlacementChannel != null
         if (!isRelevant) {
-            Log.d("NHQ-Router", "Gmail dropped (personal/non-academic): ${n.cleanTitle}")
+            Log.d("NHQ-Router", "Gmail dropped: ${n.cleanTitle}")
             return
         }
 
-        // ── Helper: Format Title (Due & Urgent tags) ──────────────────────
         fun buildFinalTitle(baseEmoji: String): String {
             var t = buildDueTitle(n.cleanTitle, n.fullCorpus) ?: "$baseEmoji ${n.cleanTitle}"
-            if (isUrgentOverall && !t.contains("🔴 URGENT")) {
-                t = "🔴 URGENT: $t"
-            }
+            if (isUrgentOverall && !t.contains("🔴 URGENT")) t = "🔴 URGENT: $t"
             return t
         }
 
-        // ── PRIORITY 1: NPTEL ─────────────────────────────────────────────
         if (isNptelText || matchedNptelChannel != null) {
             val dest = matchedNptelChannel?.label ?: BUCKET_NPTEL
-            save(db, buildFinalTitle("📚"), n.displayBody, dest, "gmail")
-            return
+            return saveAndTag(context, db, buildFinalTitle("📚"), n.displayBody, dest, "gmail", n.fullCorpus)
         }
 
-        // ── PRIORITY 2: Placements ────────────────────────────────────────
-        if (matchedPlacementChannel != null) {
-            save(db, buildFinalTitle("🏢"), n.displayBody, matchedPlacementChannel.label, "gmail")
-            return
-        }
+        if (matchedPlacementChannel != null) return saveAndTag(context, db, buildFinalTitle("🏢"), n.displayBody, matchedPlacementChannel.label, "gmail", n.fullCorpus)
 
-        // Prepare course score for remaining checks
-        val academicScored = savedCourses.map { course ->
-            course to courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId)
-        }
+        val academicScored = savedCourses.map { course -> course to courseMatchScore(n.searchLower, course.courseName, course.courseSymbol, course.courseId) }
         val bestCoursePair = academicScored.maxByOrNull { (_, score) -> score }
         val bestCourseScore = bestCoursePair?.second ?: 0
         val bestCourse = bestCoursePair?.first
 
-        // ── PRIORITY 3: Google Classroom ──────────────────────────────────
         if (isClassroomOrigin) {
             val dest = if (bestCourse != null && bestCourseScore > 0) bestCourse.courseName else BUCKET_IMPORTANT_EMAILS
-            save(db, buildFinalTitle("📘"), n.displayBody, dest, "classroom")
-            return
+            return saveAndTag(context, db, buildFinalTitle("📘"), n.displayBody, dest, "classroom", n.fullCorpus)
         }
 
-        // ── PRIORITY 4: General Academic/Urgent → Specific Course ─────────
-        if (bestCourse != null && bestCourseScore > 0) {
-            save(db, buildFinalTitle("📧"), n.displayBody, bestCourse.courseName, "gmail")
-            return
-        }
-
-        // ── PRIORITY 5: Generic Fallback (Passed Gatekeeper, no course) ───
-        save(db, buildFinalTitle("📧"), n.displayBody, BUCKET_IMPORTANT_EMAILS, "gmail")
+        if (bestCourse != null && bestCourseScore > 0) return saveAndTag(context, db, buildFinalTitle("📧"), n.displayBody, bestCourse.courseName, "gmail", n.fullCorpus)
+        saveAndTag(context, db, buildFinalTitle("📧"), n.displayBody, BUCKET_IMPORTANT_EMAILS, "gmail", n.fullCorpus)
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────────────────────────────
+    private suspend fun saveAndTag(
+        context: android.content.Context,
+        db: AppDatabase,
+        title: String,
+        text: String,
+        source: String,
+        packageSource: String,
+        fullCorpus: String
+    ) {
+        val model = NotificationModel(title = title, text = text, source = source, packageSource = packageSource, timestamp = System.currentTimeMillis())
+        val insertedId = db.notificationDao().insertNotification(model)
+        Log.d("NHQ-Router", "Saved [$packageSource → $source]: $title")
+
+        // 🟢 TRIGGER #1: Update widget instantly on arrival
+        DashboardWidgetProvider.triggerWidgetUpdate(context)
+
+        val tagInput = "$title\n$fullCorpus"
+        when (val result = GeminiTagger.tag(tagInput)) {
+            is GeminiTagger.TagResult.Tagged -> {
+                db.notificationDao().updateTagFields(insertedId.toInt(), result.isUrgent, result.dueDate)
+                // 🟢 TRIGGER #2: Update widget again if Gemini found a new date!
+                DashboardWidgetProvider.triggerWidgetUpdate(context)
+            }
+            is GeminiTagger.TagResult.NoTagNeeded -> {}
+        }
+    }
 
     private fun fuzzyScore(savedName: String, notifTitle: String): Float {
         val savedTokens = savedName.split(Regex("[^a-z0-9]+")).filter { it.length >= MIN_TOKEN_LENGTH }
@@ -296,73 +172,33 @@ object NotificationRouter {
         return score
     }
 
-    /**
-     * Extracts date information or resolves "tomorrow"/"today" dynamically.
-     */
     private fun buildDueTitle(rawTitle: String, fullCorpus: String): String? {
         val lower = fullCorpus.lowercase()
-
-        // 1. SMART CALENDAR RESOLVER FOR RELATIVE DATES ("Tomorrow" / "Today")
         val isTomorrow = lower.contains("tomorrow") || lower.contains("tmrw")
         val isToday = lower.contains("today")
+        val eventKeywords = listOf("interview", "technical round", "hr round", "group discussion", "aptitude", "exam", "test", "assessment", "deadline", "due", "submission", "scheduled")
 
-        // Triggers that, if paired with "tomorrow", immediately constitute a DUE item
-        val eventKeywords = listOf(
-            "interview", "technical round", "hr round", "group discussion",
-            "aptitude", "exam", "test", "assessment", "deadline", "due",
-            "submission", "scheduled"
-        )
-
-        val hasRelativeDateEvent = eventKeywords.any { lower.contains(it) } && (isTomorrow || isToday)
-
-        if (hasRelativeDateEvent) {
+        if (eventKeywords.any { lower.contains(it) } && (isTomorrow || isToday)) {
             val cal = Calendar.getInstance()
             if (isTomorrow) cal.add(Calendar.DAY_OF_YEAR, 1)
-
             val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
-            val dayWord = if (isTomorrow) "Tomorrow" else "Today"
-
-            // Output: 🟡 DUE Tomorrow (Apr 28) — Placements
-            return "🟡 DUE $dayWord (${sdf.format(cal.time)}) — $rawTitle"
+            return "🟡 DUE ${if (isTomorrow) "Tomorrow" else "Today"} (${sdf.format(cal.time)}) — $rawTitle"
         }
 
-        // 2. STANDARD CHECK FOR EXPLICIT DATES
-        val duePatterns = listOf(
-            "closes on", "due date", "due on", "last date", "submit by",
-            "deadline", "ends on", "scheduled on", "scheduled for",
-            "interview on", "assessment on", "held on", "exam on", "test on"
-        )
+        val duePatterns = listOf("closes on", "due date", "due on", "last date", "submit by", "deadline", "ends on", "scheduled on", "scheduled for", "interview on", "assessment on", "held on", "exam on", "test on")
+        if (!duePatterns.any { lower.contains(it) }) return null
 
-        val hasDue = duePatterns.any { lower.contains(it) }
-        if (!hasDue) return null
-
-        // Build a regex to split exactly at the found keyword
         val regexStr = "(?i)(" + duePatterns.joinToString("|") { "$it\\s*:?" } + ")"
         val rawSegment = fullCorpus.split(Regex(regexStr)).getOrNull(1)?.trim() ?: ""
-
         if (rawSegment.isEmpty()) return "🟡 $rawTitle"
 
         val window = rawSegment.take(DATE_WINDOW)
-        val boundaryIndex = listOf(
-            window.indexOf(". "), window.indexOf("! "), window.indexOf("? "), window.indexOf("\n")
-        ).filter { it > 0 }.minOrNull()
-
-        val datePart: String = if (boundaryIndex != null) {
-            window.substring(0, boundaryIndex + 1).trim()
-        } else {
+        val boundaryIndex = listOf(window.indexOf(". "), window.indexOf("! "), window.indexOf("? "), window.indexOf("\n")).filter { it > 0 }.minOrNull()
+        val datePart = if (boundaryIndex != null) window.substring(0, boundaryIndex + 1).trim() else {
             val trimmed = window.trim()
             val lastSpace = trimmed.lastIndexOf(' ')
             if (lastSpace > 0) trimmed.substring(0, lastSpace) else trimmed
         }
-
         return if (datePart.isNotEmpty()) "🟡 DUE $datePart — $rawTitle" else "🟡 $rawTitle"
-    }
-
-    private suspend fun save(db: AppDatabase, title: String, text: String, source: String, packageSource: String) {
-        val model = NotificationModel(
-            title = title, text = text, source = source, packageSource = packageSource, timestamp = System.currentTimeMillis()
-        )
-        db.notificationDao().insertNotification(model)
-        Log.d("NHQ-Router", "Saved [$packageSource → $source]: $title")
     }
 }

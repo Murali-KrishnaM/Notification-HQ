@@ -14,38 +14,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Adapter for the per-course notification feed shown in [DetailActivity].
- *
- * Bug-fixes applied (behaviour is otherwise identical to the original):
- *
- * 1. STALE POSITION — the original captured `position` from onBindViewHolder
- *    and passed it directly into dialog callbacks.  By the time "Delete" is
- *    confirmed the list may have changed, making `position` point at the wrong
- *    item (or crash with IndexOutOfBoundsException).
- *    Fix: snapshot `holder.adapterPosition` at long-press time, validate it
- *    immediately, and pass the snapshot into every dialog callback.
- *
- * 2. CONTEXT / MEMORY LEAK — the original used bare
- *    `CoroutineScope(Dispatchers.IO).launch { … }` which creates an unscoped,
- *    untracked coroutine that outlives the Activity.
- *    Fix: the constructor now requires a caller-supplied [scope]
- *    (pass `lifecycleScope` from the host Activity / Fragment) so all
- *    coroutines are cancelled automatically on destroy.
- *
- * 3. DELETE POSITION RE-CHECK — confirmDelete now re-validates the snapshot
- *    position inside the positive-button callback because another item may have
- *    been deleted while the confirmation dialog was open.
- */
 class NotificationAdapter(
     private val notifications: MutableList<NotificationModel>,
     private val statusMap: MutableMap<Int, String>,
-    /** Pass `lifecycleScope` from the host Activity / Fragment. */
     private val scope: CoroutineScope,
     private val onListChanged: () -> Unit
 ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
 
-    // ── Neon accent palette ────────────────────────────────────────────────
     private val colorNeonGreen = 0xFF00E5A0.toInt()
     private val colorNeonRed   = 0xFFFF4D6A.toInt()
     private val colorNeonAmber = 0xFFFFB340.toInt()
@@ -61,8 +36,7 @@ class NotificationAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_notification, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_notification, parent, false)
         return ViewHolder(view)
     }
 
@@ -70,17 +44,11 @@ class NotificationAdapter(
         val notif = notifications[position]
         val text  = notif.text ?: ""
 
-        // ── Title ──────────────────────────────────────────────────────────
         holder.tvTitle.text = notif.title ?: "Unknown"
 
-        // ── Clean message body ─────────────────────────────────────────────
-        val cleanText = text
-            .replace("🔴 URGENT", "")
-            .replace("🟡 DUE", "")
-            .trim()
+        val cleanText = text.replace("🔴 URGENT", "").replace("🟡 DUE", "").trim()
         holder.tvMessage.text = cleanText
 
-        // ── Source chip ────────────────────────────────────────────────────
         val sourceLabel = when {
             notif.packageSource.contains("whatsapp",  ignoreCase = true) -> "WhatsApp"
             notif.packageSource.contains("gmail",     ignoreCase = true) -> "Gmail"
@@ -89,7 +57,6 @@ class NotificationAdapter(
         }
         holder.tvSource.text = sourceLabel
 
-        // ── Priority chip + accent bar ─────────────────────────────────────
         when {
             text.contains("🔴 URGENT") -> {
                 holder.tvPriorityChip.visibility = View.VISIBLE
@@ -101,9 +68,7 @@ class NotificationAdapter(
                 holder.tvPriorityChip.visibility = View.VISIBLE
                 holder.tvPriorityChip.text = "🟡 DUE"
                 holder.tvPriorityChip.setBackgroundResource(
-                    holder.itemView.context.resources.getIdentifier(
-                        "chip_due_dark", "drawable", holder.itemView.context.packageName
-                    ).takeIf { it != 0 } ?: R.drawable.chip_urgent_dark
+                    holder.itemView.context.resources.getIdentifier("chip_due_dark", "drawable", holder.itemView.context.packageName).takeIf { it != 0 } ?: R.drawable.chip_urgent_dark
                 )
                 holder.viewAccentBar.setBackgroundColor(colorNeonAmber)
             }
@@ -113,29 +78,20 @@ class NotificationAdapter(
             }
         }
 
-        // ── Status pill ────────────────────────────────────────────────────
         val currentStatus = statusMap[notif.id] ?: TaskStatusModel.STATUS_NOT_STARTED
         bindStatusPill(holder.tvStatusPill, currentStatus)
 
-        // ── Tap — open full notification view ──────────────────────────────
-        // Behaviour unchanged from original.
         holder.itemView.setOnClickListener {
             val context = holder.itemView.context
-            context.startActivity(
-                Intent(context, FullNotificationActivity::class.java).apply {
-                    putExtra("NOTIF_TITLE",     notif.title ?: "")
-                    putExtra("NOTIF_TEXT",      notif.text  ?: "")
-                    putExtra("NOTIF_SOURCE",    notif.source ?: "")
-                    putExtra("NOTIF_PACKAGE",   notif.packageSource)
-                    putExtra("NOTIF_TIMESTAMP", notif.timestamp)
-                }
-            )
+            context.startActivity(Intent(context, FullNotificationActivity::class.java).apply {
+                putExtra("NOTIF_TITLE",     notif.title ?: "")
+                putExtra("NOTIF_TEXT",      notif.text  ?: "")
+                putExtra("NOTIF_SOURCE",    notif.source ?: "")
+                putExtra("NOTIF_PACKAGE",   notif.packageSource)
+                putExtra("NOTIF_TIMESTAMP", notif.timestamp)
+            })
         }
 
-        // ── Long-press — management dialog ─────────────────────────────────
-        // BUG FIX: snapshot adapterPosition HERE at long-press time, not
-        // inside the dialog callback.  The bind-time `position` parameter is
-        // stale by the time a dialog confirm fires after list mutations.
         holder.itemView.setOnLongClickListener {
             val snapshotPos = holder.adapterPosition
             if (snapshotPos == RecyclerView.NO_ID.toInt() || snapshotPos < 0 || snapshotPos >= notifications.size) return@setOnLongClickListener true
@@ -145,10 +101,6 @@ class NotificationAdapter(
     }
 
     override fun getItemCount() = notifications.size
-
-    // ─────────────────────────────────────────────────────────────────────
-    // STATUS PILL BINDING
-    // ─────────────────────────────────────────────────────────────────────
 
     private fun bindStatusPill(pill: TextView, status: String) {
         when (status) {
@@ -170,15 +122,7 @@ class NotificationAdapter(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // LONG-PRESS MANAGEMENT DIALOG
-    // ─────────────────────────────────────────────────────────────────────
-
-    private fun showManagementDialog(
-        holder: ViewHolder,
-        notif: NotificationModel,
-        snapshotPos: Int                     // already validated before this call
-    ) {
+    private fun showManagementDialog(holder: ViewHolder, notif: NotificationModel, snapshotPos: Int) {
         val context = holder.itemView.context
         AlertDialog.Builder(context)
             .setTitle(notif.title?.take(40) ?: "Notification")
@@ -192,23 +136,10 @@ class NotificationAdapter(
             .show()
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // STATUS CHOOSER
-    // ─────────────────────────────────────────────────────────────────────
-
     private fun showStatusChooser(holder: ViewHolder, notif: NotificationModel) {
         val context = holder.itemView.context
-
-        val options = arrayOf(
-            "⬜  Not Started",
-            "🔄  In Progress",
-            "✅  Submitted"
-        )
-        val statusValues = arrayOf(
-            TaskStatusModel.STATUS_NOT_STARTED,
-            TaskStatusModel.STATUS_IN_PROGRESS,
-            TaskStatusModel.STATUS_SUBMITTED
-        )
+        val options = arrayOf("⬜  Not Started", "🔄  In Progress", "✅  Submitted")
+        val statusValues = arrayOf(TaskStatusModel.STATUS_NOT_STARTED, TaskStatusModel.STATUS_IN_PROGRESS, TaskStatusModel.STATUS_SUBMITTED)
 
         val currentStatus = statusMap[notif.id] ?: TaskStatusModel.STATUS_NOT_STARTED
         val currentIndex  = statusValues.indexOf(currentStatus).coerceAtLeast(0)
@@ -217,43 +148,32 @@ class NotificationAdapter(
             .setTitle("Update Task Status")
             .setSingleChoiceItems(options, currentIndex) { dialog, which ->
                 val chosenStatus = statusValues[which]
-
                 statusMap[notif.id] = chosenStatus
                 bindStatusPill(holder.tvStatusPill, chosenStatus)
 
-                // BUG FIX: use caller-supplied scope instead of a bare
-                // CoroutineScope(Dispatchers.IO) that leaks beyond Activity destroy.
                 scope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(context.applicationContext)
-                    db.taskStatusDao().upsertStatus(
-                        TaskStatusModel(notifId = notif.id, status = chosenStatus)
-                    )
-                }
+                    db.taskStatusDao().upsertStatus(TaskStatusModel(notifId = notif.id, status = chosenStatus))
 
+                    withContext(Dispatchers.Main) {
+                        onListChanged()
+                        // 🟢 TRIGGER WIDGET REFRESH
+                        DashboardWidgetProvider.triggerWidgetUpdate(context.applicationContext)
+                    }
+                }
                 dialog.dismiss()
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // DELETE CONFIRMATION
-    // ─────────────────────────────────────────────────────────────────────
-
-    private fun confirmDelete(
-        context: android.content.Context,
-        notif: NotificationModel,
-        snapshotPos: Int
-    ) {
+    private fun confirmDelete(context: android.content.Context, notif: NotificationModel, snapshotPos: Int) {
         AlertDialog.Builder(context)
             .setTitle("Delete Notification?")
             .setMessage("This will permanently remove this notification from the feed.")
             .setPositiveButton("Delete") { _, _ ->
-                // BUG FIX: re-validate snapshot — another item may have been
-                // deleted while this confirmation dialog was open.
                 if (snapshotPos < 0 || snapshotPos >= notifications.size) return@setPositiveButton
 
-                // BUG FIX: use caller-supplied scope — no leak.
                 scope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(context.applicationContext)
                     db.notificationDao().deleteNotificationById(notif.id)
@@ -268,6 +188,8 @@ class NotificationAdapter(
                         }
                         Toast.makeText(context, "🗑️ Notification deleted", Toast.LENGTH_SHORT).show()
                         onListChanged()
+                        // 🟢 TRIGGER WIDGET REFRESH
+                        DashboardWidgetProvider.triggerWidgetUpdate(context.applicationContext)
                     }
                 }
             }
