@@ -26,11 +26,23 @@
         <activity android:name=".AcademicsActivity" />
         <activity android:name=".PlacementsActivity" />
         <activity android:name=".HostelActivity" />
-        <activity android:name=".NptelActivity" />
         <activity android:name=".ActiveDuesActivity" />
-
         <activity android:name=".DetailActivity" android:exported="false" />
         <activity android:name=".FullNotificationActivity" />
+        <activity
+                android:name=".NptelActivity"
+                android:exported="false" />
+
+        <receiver
+                android:name=".DashboardWidgetProvider"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                    android:name="android.appwidget.provider"
+                    android:resource="@xml/dashboard_widget_info" />
+        </receiver>
 
         <service android:name=".NotificationListener"
                  android:label="Notification HQ Listener"

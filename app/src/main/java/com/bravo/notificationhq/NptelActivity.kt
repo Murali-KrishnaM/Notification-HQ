@@ -23,6 +23,9 @@ class NptelActivity : BaseActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var layoutEmptyState: LinearLayout
 
+    // The exact string used by your Router for generic NPTEL mails
+    private val GENERIC_NPTEL_BUCKET = "📚 NPTEL"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_nptel)
@@ -45,14 +48,31 @@ class NptelActivity : BaseActivity() {
     private fun loadChannels() {
         lifecycleScope.launch(Dispatchers.IO) {
             val db       = AppDatabase.getDatabase(this@NptelActivity)
-            val channels = db.nptelChannelDao().getAllChannels()
 
-            val countMap = channels.associate { channel ->
+            // 1. Get user-created channels
+            val userChannels = db.nptelChannelDao().getAllChannels().toMutableList()
+
+            // 2. Map their notification counts
+            val countMap = userChannels.associate { channel ->
                 channel.label to db.notificationDao().getCountForCourse(channel.label)
-            }
+            }.toMutableMap()
+
+            // ── THE FIX: Create a synthetic "General Inbox" card ──
+            // This catches everything the Router dumped into the generic BUCKET_NPTEL
+            val genericCount = db.notificationDao().getCountForCourse(GENERIC_NPTEL_BUCKET)
+
+            val genericChannel = NptelChannelModel(
+                id = 0, // Dummy ID for synthetic channel
+                label = GENERIC_NPTEL_BUCKET,
+                emailAddresses = "Unassigned NPTEL Updates"
+            )
+
+            // Always put the General Inbox at the very top of the list
+            userChannels.add(0, genericChannel)
+            countMap[GENERIC_NPTEL_BUCKET] = genericCount
 
             withContext(Dispatchers.Main) {
-                if (channels.isEmpty()) {
+                if (userChannels.isEmpty()) {
                     recyclerView.visibility     = View.GONE
                     layoutEmptyState.visibility = View.VISIBLE
                 } else {
@@ -60,7 +80,7 @@ class NptelActivity : BaseActivity() {
                     layoutEmptyState.visibility = View.GONE
 
                     recyclerView.adapter = NptelChannelAdapter(
-                        channels        = channels,
+                        channels        = userChannels,
                         notifCounts     = countMap,
                         onItemClick     = { channel -> openChannelDetail(channel) },
                         onItemLongClick = { channel -> showChannelOptions(channel) }
@@ -84,6 +104,12 @@ class NptelActivity : BaseActivity() {
     // LONG PRESS OPTIONS
     // ─────────────────────────────────────────────────────────────────────────
     private fun showChannelOptions(channel: NptelChannelModel) {
+        // Prevent editing/deleting the synthetic General Inbox!
+        if (channel.label == GENERIC_NPTEL_BUCKET) {
+            Toast.makeText(this, "The General Inbox cannot be edited or deleted.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         AlertDialog.Builder(this)
             .setTitle(channel.label)
             .setItems(arrayOf("✏️  Edit Course", "🗑️  Delete Course")) { _, which ->
@@ -108,12 +134,6 @@ class NptelActivity : BaseActivity() {
                     val db = AppDatabase.getDatabase(this@NptelActivity)
                     db.nptelChannelDao().deleteChannel(channel)
                     db.notificationDao().deleteNotificationsForCourse(channel.label)
-                    // FIX: Also purge task_status_table rows whose parent
-                    // notifications just got deleted.  Without this, orphaned
-                    // status rows accumulate and inflate the dashboard's pending
-                    // count because loadDashboard() joins notifications with
-                    // statuses — deleted notifications are gone but their status
-                    // rows still match the IN_PROGRESS / NOT_STARTED filter.
                     db.taskStatusDao().deleteStatusesForCourse(channel.label)
 
                     withContext(Dispatchers.Main) {
@@ -158,6 +178,8 @@ class NptelActivity : BaseActivity() {
             var isValid = true
             if (label.isEmpty())  { tilLabel.error  = "Course name is required"; isValid = false }
             if (emails.isEmpty()) { tilEmails.error = "At least one sender email is required"; isValid = false }
+            if (label == GENERIC_NPTEL_BUCKET) { tilLabel.error = "Reserved name. Choose another."; isValid = false }
+
             if (!isValid) return@setOnClickListener
 
             lifecycleScope.launch(Dispatchers.IO) {
@@ -210,6 +232,10 @@ class NptelActivity : BaseActivity() {
             var isValid = true
             if (newLabel.isEmpty())  { tilLabel.error  = "Course name is required"; isValid = false }
             if (newEmails.isEmpty()) { tilEmails.error = "At least one email is required"; isValid = false }
+            if (newLabel == GENERIC_NPTEL_BUCKET && channel.label != GENERIC_NPTEL_BUCKET) {
+                tilLabel.error = "Reserved name. Choose another."
+                isValid = false
+            }
             if (!isValid) return@setOnClickListener
 
             val oldLabel = channel.label
