@@ -107,14 +107,8 @@ NOTIFICATION HQ respects user privacy by design.
 
 ---
 
-## 👥 Team Bravo
-
 Developed as part of the Design Thinking and Innovation course at **Rajalakshmi Engineering College**.
-
-* **Jashareen J**
 * **Murali Krishna M**
-* **Nithun Kumar RS**
-
 ---
 
 ## 📄 License
